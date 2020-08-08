@@ -34,10 +34,10 @@ void MX_ADC1_Init(void)
   LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* Peripheral clock enable */
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC1);
-  
+
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-  /**ADC1 GPIO Configuration  
-  PA2   ------> ADC1_IN2 
+  /**ADC1 GPIO Configuration
+  PA2   ------> ADC1_IN2
   */
   GPIO_InitStruct.Pin = REF_ADC_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_ANALOG;
@@ -45,7 +45,7 @@ void MX_ADC1_Init(void)
   LL_GPIO_Init(REF_ADC_GPIO_Port, &GPIO_InitStruct);
 
   /* ADC1 DMA Init */
-  
+
   /* ADC1 Init */
   LL_DMA_SetChannelSelection(DMA2, LL_DMA_STREAM_0, LL_DMA_CHANNEL_0);
 
@@ -65,7 +65,7 @@ void MX_ADC1_Init(void)
 
   LL_DMA_DisableFifoMode(DMA2, LL_DMA_STREAM_0);
 
-  /** Common config 
+  /** Common config
   */
   ADC_InitStruct.Resolution = LL_ADC_RESOLUTION_12B;
   ADC_InitStruct.DataAlignment = LL_ADC_DATA_ALIGN_RIGHT;
@@ -83,7 +83,7 @@ void MX_ADC1_Init(void)
   ADC_CommonInitStruct.Multimode = LL_ADC_MULTI_INDEPENDENT;
   LL_ADC_CommonInit(__LL_ADC_COMMON_INSTANCE(ADC1), &ADC_CommonInitStruct);
   LL_ADC_REG_StartConversionExtTrig(ADC1, LL_ADC_REG_TRIG_EXT_RISING);
-  /** Configure Regular Channel 
+  /** Configure Regular Channel
   */
   LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_2);
   LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_2, LL_ADC_SAMPLINGTIME_112CYCLES);
@@ -98,10 +98,10 @@ void MX_ADC2_Init(void)
   LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* Peripheral clock enable */
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC2);
-  
+
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-  /**ADC2 GPIO Configuration  
-  PA7   ------> ADC2_IN7 
+  /**ADC2 GPIO Configuration
+  PA7   ------> ADC2_IN7
   */
   GPIO_InitStruct.Pin = ERR_ADC_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_ANALOG;
@@ -109,7 +109,7 @@ void MX_ADC2_Init(void)
   LL_GPIO_Init(ERR_ADC_GPIO_Port, &GPIO_InitStruct);
 
   /* ADC2 DMA Init */
-  
+
   /* ADC2 Init */
   LL_DMA_SetChannelSelection(DMA2, LL_DMA_STREAM_2, LL_DMA_CHANNEL_1);
 
@@ -129,7 +129,7 @@ void MX_ADC2_Init(void)
 
   LL_DMA_DisableFifoMode(DMA2, LL_DMA_STREAM_2);
 
-  /** Common config 
+  /** Common config
   */
   ADC_InitStruct.Resolution = LL_ADC_RESOLUTION_12B;
   ADC_InitStruct.DataAlignment = LL_ADC_DATA_ALIGN_RIGHT;
@@ -143,7 +143,7 @@ void MX_ADC2_Init(void)
   LL_ADC_REG_Init(ADC2, &ADC_REG_InitStruct);
   LL_ADC_REG_SetFlagEndOfConversion(ADC2, LL_ADC_REG_FLAG_EOC_UNITARY_CONV);
   LL_ADC_DisableIT_EOCS(ADC2);
-  /** Configure Regular Channel 
+  /** Configure Regular Channel
   */
   LL_ADC_REG_SetSequencerRanks(ADC2, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_7);
   LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_7, LL_ADC_SAMPLINGTIME_112CYCLES);

@@ -33,11 +33,11 @@ void MX_USART1_UART_Init(void)
   LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* Peripheral clock enable */
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_USART1);
-  
+
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
-  /**USART1 GPIO Configuration  
+  /**USART1 GPIO Configuration
   PB6   ------> USART1_TX
-  PB7   ------> USART1_RX 
+  PB7   ------> USART1_RX
   */
   GPIO_InitStruct.Pin = LL_GPIO_PIN_6|LL_GPIO_PIN_7;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
@@ -48,7 +48,7 @@ void MX_USART1_UART_Init(void)
   LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USART1 DMA Init */
-  
+
   /* USART1_TX Init */
   LL_DMA_SetChannelSelection(DMA2, LL_DMA_STREAM_7, LL_DMA_CHANNEL_4);
 
