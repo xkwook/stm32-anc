@@ -1,0 +1,5 @@
+vscode/
+.settings/
+**/**.bak
+**/Backup/
+Debug/
