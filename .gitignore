@@ -3,3 +3,4 @@ vscode/
 **/**.bak
 **/Backup/
 Debug/
+.sw4stm32.**

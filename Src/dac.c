@@ -32,10 +32,10 @@ void MX_DAC_Init(void)
   LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* Peripheral clock enable */
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_DAC1);
-
+  
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-  /**DAC GPIO Configuration
-  PA5   ------> DAC_OUT2
+  /**DAC GPIO Configuration  
+  PA5   ------> DAC_OUT2 
   */
   GPIO_InitStruct.Pin = OUT_DAC_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_ANALOG;
@@ -43,7 +43,7 @@ void MX_DAC_Init(void)
   LL_GPIO_Init(OUT_DAC_GPIO_Port, &GPIO_InitStruct);
 
   /* DAC DMA Init */
-
+  
   /* DAC2 Init */
   LL_DMA_SetChannelSelection(DMA1, LL_DMA_STREAM_6, LL_DMA_CHANNEL_7);
 
@@ -63,7 +63,7 @@ void MX_DAC_Init(void)
 
   LL_DMA_DisableFifoMode(DMA1, LL_DMA_STREAM_6);
 
-  /** DAC channel OUT2 config
+  /** DAC channel OUT2 config 
   */
   DAC_InitStruct.TriggerSource = LL_DAC_TRIG_EXT_TIM2_TRGO;
   DAC_InitStruct.WaveAutoGeneration = LL_DAC_WAVE_AUTO_GENERATION_NONE;

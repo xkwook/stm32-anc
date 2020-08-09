@@ -56,7 +56,7 @@ void MX_USART1_UART_Init(void)
 
   LL_DMA_SetStreamPriorityLevel(DMA2, LL_DMA_STREAM_7, LL_DMA_PRIORITY_HIGH);
 
-  LL_DMA_SetMode(DMA2, LL_DMA_STREAM_7, LL_DMA_MODE_CIRCULAR);
+  LL_DMA_SetMode(DMA2, LL_DMA_STREAM_7, LL_DMA_MODE_NORMAL);
 
   LL_DMA_SetPeriphIncMode(DMA2, LL_DMA_STREAM_7, LL_DMA_PERIPH_NOINCREMENT);
 
@@ -72,7 +72,7 @@ void MX_USART1_UART_Init(void)
   NVIC_SetPriority(USART1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),2, 0));
   NVIC_EnableIRQ(USART1_IRQn);
 
-  USART_InitStruct.BaudRate = 115200;
+  USART_InitStruct.BaudRate = 384000;
   USART_InitStruct.DataWidth = LL_USART_DATAWIDTH_8B;
   USART_InitStruct.StopBits = LL_USART_STOPBITS_1;
   USART_InitStruct.Parity = LL_USART_PARITY_NONE;

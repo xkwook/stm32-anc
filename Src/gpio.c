@@ -30,9 +30,9 @@
 
 /* USER CODE END 1 */
 
-/** Configure pins as
-        * Analog
-        * Input
+/** Configure pins as 
+        * Analog 
+        * Input 
         * Output
         * EVENT_OUT
         * EXTI
@@ -49,14 +49,14 @@ void MX_GPIO_Init(void)
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
 
   /**/
-  LL_GPIO_ResetOutputPin(GPIOB, REF_A0_Pin|REF_A1_Pin|OUT_A0_Pin|OUT_A1_Pin
+  LL_GPIO_ResetOutputPin(GPIOB, REF_A0_Pin|REF_A1_Pin|OUT_A0_Pin|OUT_A1_Pin 
                           |DEBUG_PIN_Pin|LED_Pin);
 
   /**/
   LL_GPIO_ResetOutputPin(GPIOC, ERR_A0_Pin|ERR_A1_Pin);
 
   /**/
-  GPIO_InitStruct.Pin = REF_A0_Pin|REF_A1_Pin|OUT_A0_Pin|OUT_A1_Pin
+  GPIO_InitStruct.Pin = REF_A0_Pin|REF_A1_Pin|OUT_A0_Pin|OUT_A1_Pin 
                           |DEBUG_PIN_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
   GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
