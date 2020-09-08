@@ -10,7 +10,7 @@
 
 #include "main.h"
 
-#define DATALOGGER_SAMPLE_TYPE      float
+#define DATALOGGER_SAMPLE_TYPE      uint8_t
 #define DATALOGGER_SAMPLE_CHANNELS  3
 #define DATALOGGER_SAMPLE_BURST     1
 
@@ -24,7 +24,7 @@ struct DataLogger_logData_struct {
     DATALOGGER_SAMPLE_TYPE  sample[DATALOGGER_SAMPLE_CHANNELS][DATALOGGER_SAMPLE_BURST];
 };
 
-typedef struct DataLogger_logData_struct
+typedef struct __attribute__((packed)) DataLogger_logData_struct
     DataLogger_logData_t;
 
 /* DataLogger class body */
@@ -44,6 +44,6 @@ int  DataLogger_Log(DataLogger_t* self);
 
 void DataLogger_DmaIrqHandler(DataLogger_t* self);
 
-void DataLogger_TransferCpltCallback(DataLogger_t* self);
+__attribute__((__weak__)) void DataLogger_TransferCpltCallback(DataLogger_t* self);
 
 #endif /* DATALOGGER_H_ */

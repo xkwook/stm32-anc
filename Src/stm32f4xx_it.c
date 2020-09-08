@@ -24,6 +24,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "datalogger.h"
+#include "anc_acquisition.h"
+#include "uart_receiver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,7 +45,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-extern DataLogger_t DataLogger;
+extern DataLogger_t       DataLogger;
+extern anc_acquisition_t  AncAcquisition;
+extern uart_receiver_t    UartReceiver;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -218,7 +222,7 @@ void DMA1_Stream6_IRQHandler(void)
 void USART1_IRQHandler(void)
 {
   /* USER CODE BEGIN USART1_IRQn 0 */
-
+  uart_receiver_uartIrqHandler(&UartReceiver);
   /* USER CODE END USART1_IRQn 0 */
   /* USER CODE BEGIN USART1_IRQn 1 */
 
@@ -231,7 +235,7 @@ void USART1_IRQHandler(void)
 void DMA2_Stream0_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA2_Stream0_IRQn 0 */
-
+  anc_acquisition_dmaIrqHandler(&AncAcquisition);
   /* USER CODE END DMA2_Stream0_IRQn 0 */
   
   /* USER CODE BEGIN DMA2_Stream0_IRQn 1 */
@@ -251,6 +255,20 @@ void DMA2_Stream2_IRQHandler(void)
   /* USER CODE BEGIN DMA2_Stream2_IRQn 1 */
 
   /* USER CODE END DMA2_Stream2_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA2 stream5 global interrupt.
+  */
+void DMA2_Stream5_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Stream5_IRQn 0 */
+  uart_receiver_dmaIrqHandler(&UartReceiver);
+  /* USER CODE END DMA2_Stream5_IRQn 0 */
+  
+  /* USER CODE BEGIN DMA2_Stream5_IRQn 1 */
+
+  /* USER CODE END DMA2_Stream5_IRQn 1 */
 }
 
 /**

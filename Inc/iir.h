@@ -8,6 +8,8 @@
 #ifndef IIR_H_
 #define IIR_H_
 
+#include <stdint.h>
+
 #define IIR_ORDER       3
 #define IIR_DATA_CHUNK  4
 

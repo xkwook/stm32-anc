@@ -29,7 +29,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include "datalogger.h"
+#include "anc_acquisition.h"
+#include "math.h"
+#include "iir.h"
+#include "uart_receiver.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,7 +55,41 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-DataLogger_t  DataLogger;
+DataLogger_t      DataLogger;
+anc_acquisition_t AncAcquisition;
+uart_receiver_t   UartReceiver;
+
+/* Normal IIR with notch for 50 Hz */
+const float iir_b_coeffs[4] = {
+  0.9883,
+  -2.9635,
+  2.9635,
+  -0.9883
+};
+const float iir_a_coeffs[3] = {
+  -2.9751,
+  2.9518,
+  -0.9767
+};
+
+/* IIR with notch for 500 Hz */
+/*
+const float iir_b_coeffs[4] = {
+  0.9547,
+  -2.7187,
+  2.7187,
+  -0.9547
+};
+const float iir_a_coeffs[3] = {
+  -2.7623,
+  2.6746,
+  -0.9100
+};
+*/
+
+iir_t IirRefMic;
+iir_t IirErrMic;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,6 +100,72 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+static inline void average_and_send(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
+{
+  static int32_t triangleCnt = 0;
+  static int32_t triangleDir = 250;
+
+  float* refMicFiltered;
+  float* errMicFiltered;
+
+  refMicFiltered = iir_perform(&IirRefMic, (int16_t*)refMicBfr);
+  errMicFiltered = iir_perform(&IirErrMic, (int16_t*)errMicBfr);
+
+  float refMicMean = 0.0;
+  float errMicMean = 0.0;
+  int32_t outDacMean = 0;
+  for (uint32_t i = 0; i < ANC_ACQUISITION_CHUNK_SIZE; i++)
+  {
+    //refMicMean += refMicBfr[i];
+    refMicMean += refMicFiltered[i];
+    errMicMean += errMicFiltered[i];
+    outDacMean += outDacBfr[i];
+  }
+  refMicMean /= ANC_ACQUISITION_CHUNK_SIZE;
+  errMicMean /= ANC_ACQUISITION_CHUNK_SIZE;
+  outDacMean /= ANC_ACQUISITION_CHUNK_SIZE;
+  outDacMean -= ANC_DAC_OFFSET;
+
+  /* Generate new DAC samples */
+  /* Triangle of tone 500 Hz */
+  for (uint32_t i = 0; i < ANC_ACQUISITION_CHUNK_SIZE; i++)
+  {
+    outDacBfr[i] = triangleCnt + ANC_DAC_OFFSET;
+    triangleCnt += triangleDir;
+  }
+  if (triangleCnt == 2000 || triangleCnt == -2000)
+  {
+    triangleDir *= -1;
+  }
+
+  DataLogger.bfr.sample[0][0] = (int8_t)(refMicMean / 16.0);
+  DataLogger.bfr.sample[1][0] = (int8_t)(errMicMean / 16.0);
+  DataLogger.bfr.sample[2][0] = (int8_t)(outDacMean / 16);
+
+  DataLogger_Log(&DataLogger);
+}
+
+void anc_acquisition_bfr0_callback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
+{
+  average_and_send(refMicBfr, errMicBfr, outDacBfr);
+}
+
+void anc_acquisition_bfr1_callback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
+{
+  static uint32_t cnt = 0;
+  if (cnt % 1000 == 0)
+  {
+    LL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+  }
+  cnt++;
+  average_and_send(refMicBfr, errMicBfr, outDacBfr);
+}
+
+void uart_receiver_onQueueFullCallback(uart_receiver_t* self)
+{
+  printf("Uart Receiver Queue full event!\n");
+}
 
 /* USER CODE END 0 */
 
@@ -108,14 +213,37 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   DataLogger_Init(&DataLogger);
+  anc_acquisition_init(&AncAcquisition);
+  uart_receiver_init(&UartReceiver);
 
-  DataLogger_Log(&DataLogger);
+  /* Set all gains to default */
+  LL_GPIO_ResetOutputPin(REF_A0_GPIO_Port, REF_A0_Pin);
+  LL_GPIO_ResetOutputPin(REF_A1_GPIO_Port, REF_A1_Pin);
+  LL_GPIO_ResetOutputPin(ERR_A0_GPIO_Port, ERR_A0_Pin);
+  LL_GPIO_ResetOutputPin(ERR_A1_GPIO_Port, ERR_A1_Pin);
+  LL_GPIO_ResetOutputPin(OUT_A0_GPIO_Port, OUT_A0_Pin);
+  LL_GPIO_ResetOutputPin(OUT_A1_GPIO_Port, OUT_A1_Pin);
+
+  iir_init(&IirRefMic, iir_b_coeffs, iir_a_coeffs);
+  iir_init(&IirErrMic, iir_b_coeffs, iir_a_coeffs);
+
+  printf("ANC started!\n");
+
+  //anc_acquisition_start(&AncAcquisition);
+  uart_receiver_start(&UartReceiver);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    char* rcvMsg_p;
+    rcvMsg_p = uart_receiver_getMsg(&UartReceiver);
+    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
+    {
+      printf("%s\n", rcvMsg_p);
+      uart_receiver_freeMsg(&UartReceiver);
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -167,6 +295,12 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+int __io_putchar(int ch)
+{
+  ITM_SendChar(ch);
+  return ch;
+}
 
 /* USER CODE END 4 */
 

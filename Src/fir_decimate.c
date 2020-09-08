@@ -15,7 +15,7 @@ void    fir_decimate_init(
     self->coeffs_p = coeffs_p;
 
     ringbuffer_init(
-        self->h_ringbuffer,
+        &self->h_ringbuffer,
         self->bfr_p,
         FIR_DECIMATE_CHUNK_SIZE * sizeof(self->bfr_p[0]),
         FIR_DECIMATE_CHUNK_NUM
@@ -28,7 +28,7 @@ void    fir_decimate_pushData(
 )
 {
     ringbuffer_push(
-        self->h_ringbuffer,
+        &self->h_ringbuffer,
         newData_f
     );
 }
@@ -43,7 +43,7 @@ float   fir_decimate_calculate(
     for (uint32_t i = 0; i < FIR_DECIMATE_CHUNK_NUM; i++)
     {
         float* chunk_f = (float*)ringbuffer_getItemPtr(
-            self->h_ringbuffer, i);
+            &self->h_ringbuffer, i);
 
         for (uint32_t k = 0; k < FIR_DECIMATE_CHUNK_SIZE; k++)
         {

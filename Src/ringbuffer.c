@@ -56,9 +56,9 @@ void ringbuffer_push(ringbuffer_t* self, void* item_p)
 }
 
 void*   ringbuffer_getItemPtr(
-    ringbuffer_t    self,
+    ringbuffer_t*   self,
     uint32_t        invIdx_u32
-);
+)
 {
     void* read_p = self->feed_p - invIdx_u32 * self->itemSize_u32;
 
@@ -72,12 +72,12 @@ void*   ringbuffer_getItemPtr(
 }
 
 void    ringbuffer_getItem(
-    ringbuffer_t    self,
+    ringbuffer_t*   self,
     uint32_t        invIdx_u32,
     void*           item_p
-);
+)
 {
-    void* read_p = ringbuffer_getPtr(self, invIdx_u32);
+    void* read_p = ringbuffer_getItemPtr(self, invIdx_u32);
 
     /* Put data at feed pointer */
     memcpy(item_p, read_p, self->itemSize_u32);

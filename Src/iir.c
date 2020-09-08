@@ -31,7 +31,7 @@ void iir_pushData(
     /* Put new data and cast it to floats */
     for (uint32_t i = 0; i < IIR_DATA_CHUNK; i++)
     {
-        dataIn_f[IIR_ORDER + i] = (float)newDataChunk_i16[i];
+        self->dataIn_f[IIR_ORDER + i] = (float)newDataChunk_i16[i];
     }
 }
 
@@ -54,7 +54,7 @@ float* iir_calculate(
     float* a = self->a_coeffs_p;
     for (int32_t i = 0; i < IIR_DATA_CHUNK; i++)
     {
-        y[i] = b[0] * x[0];
+        y[i] = b[0] * x[i];
         for (int32_t k = 0; k < IIR_ORDER; k++)
         {
             y[i] += b[k + 1] * x[i - k - 1];

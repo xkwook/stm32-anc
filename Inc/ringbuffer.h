@@ -40,12 +40,12 @@ void    ringbuffer_push(
 );
 
 void*   ringbuffer_getItemPtr(
-    ringbuffer_t    self,
+    ringbuffer_t*   self,
     uint32_t        invIdx_u32
 );
 
 void    ringbuffer_getItem(
-    ringbuffer_t    self,
+    ringbuffer_t*   self,
     uint32_t        invIdx_u32,
     void*           item_p
 );
