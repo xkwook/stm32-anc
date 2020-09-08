@@ -63,7 +63,7 @@ int  anc_acquisition_configure
     {
         return -2;
     }
-    if ((self->halfBfrCallback == NULL) || (self->fullBfrCallback == NULL))
+    if ((halfBfrCallback == NULL) || (fullBfrCallback == NULL))
     {
         return -3;
     }

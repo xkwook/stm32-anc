@@ -36,6 +36,8 @@
 #include "iir.h"
 #include "uart_receiver.h"
 #include "swo_logger.h"
+#include "anc_cmd.h"
+#include "anc_gain.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -219,12 +221,9 @@ int main(void)
   SWO_LOG_INIT();
 
   /* Set all gains to default */
-  LL_GPIO_ResetOutputPin(REF_A0_GPIO_Port, REF_A0_Pin);
-  LL_GPIO_ResetOutputPin(REF_A1_GPIO_Port, REF_A1_Pin);
-  LL_GPIO_ResetOutputPin(ERR_A0_GPIO_Port, ERR_A0_Pin);
-  LL_GPIO_ResetOutputPin(ERR_A1_GPIO_Port, ERR_A1_Pin);
-  LL_GPIO_ResetOutputPin(OUT_A0_GPIO_Port, OUT_A0_Pin);
-  LL_GPIO_ResetOutputPin(OUT_A1_GPIO_Port, OUT_A1_Pin);
+  anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_2);
+  anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_2);
+  anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_2);
 
   iir_init(&IirRefMic, iir_b_coeffs, iir_a_coeffs);
   iir_init(&IirErrMic, iir_b_coeffs, iir_a_coeffs);
@@ -234,7 +233,6 @@ int main(void)
 
   SWO_LOG("ANC started!");
 
-  //anc_acquisition_start(&AncAcquisition);
   uart_receiver_start(&UartReceiver);
   /* USER CODE END 2 */
 
@@ -246,10 +244,23 @@ int main(void)
     rcvMsg_p = uart_receiver_getMsg(&UartReceiver);
     if (rcvMsg_p != UART_RECEIVER_NO_MSG)
     {
+      anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p);
+      switch (cmd)
+      {
+        case ANC_CMD_START:
+          anc_acquisition_start(&AncAcquisition);
+          break;
+        case ANC_CMD_STOP:
+          anc_acquisition_stop(&AncAcquisition);
+          break;
+        default:
+          SWO_LOG("Unrecognized command.");
+          break;
+      }
       SWO_LOG("%s", rcvMsg_p);
       uart_receiver_freeMsg(&UartReceiver);
     }
-    SWO_LOG_FLUSH();
+    SWO_LOG_PROCESS();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
