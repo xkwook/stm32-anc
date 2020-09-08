@@ -35,6 +35,7 @@
 #include "math.h"
 #include "iir.h"
 #include "uart_receiver.h"
+#include "swo_logger.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,7 +45,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define ANC_ACQUISITION_CHUNK_SIZE    4
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -164,7 +165,7 @@ void anc_acquisition_bfr1_callback(uint16_t* refMicBfr, uint16_t* errMicBfr, uin
 
 void uart_receiver_onQueueFullCallback(uart_receiver_t* self)
 {
-  printf("Uart Receiver Queue full event!\n");
+  SWO_LOG("Uart Receiver Queue full event!");
 }
 
 /* USER CODE END 0 */
@@ -178,12 +179,12 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
-  
+
 
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  
+
 
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
@@ -215,6 +216,7 @@ int main(void)
   DataLogger_Init(&DataLogger);
   anc_acquisition_init(&AncAcquisition);
   uart_receiver_init(&UartReceiver);
+  SWO_LOG_INIT();
 
   /* Set all gains to default */
   LL_GPIO_ResetOutputPin(REF_A0_GPIO_Port, REF_A0_Pin);
@@ -227,7 +229,10 @@ int main(void)
   iir_init(&IirRefMic, iir_b_coeffs, iir_a_coeffs);
   iir_init(&IirErrMic, iir_b_coeffs, iir_a_coeffs);
 
-  printf("ANC started!\n");
+  anc_acquisition_configure(&AncAcquisition, ANC_ACQUISITION_CHUNK_SIZE,
+    anc_acquisition_bfr0_callback, anc_acquisition_bfr1_callback);
+
+  SWO_LOG("ANC started!");
 
   //anc_acquisition_start(&AncAcquisition);
   uart_receiver_start(&UartReceiver);
@@ -241,9 +246,10 @@ int main(void)
     rcvMsg_p = uart_receiver_getMsg(&UartReceiver);
     if (rcvMsg_p != UART_RECEIVER_NO_MSG)
     {
-      printf("%s\n", rcvMsg_p);
+      SWO_LOG("%s", rcvMsg_p);
       uart_receiver_freeMsg(&UartReceiver);
     }
+    SWO_LOG_FLUSH();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -261,7 +267,7 @@ void SystemClock_Config(void)
 
   if(LL_FLASH_GetLatency() != LL_FLASH_LATENCY_5)
   {
-  Error_Handler();  
+  Error_Handler();
   }
   LL_PWR_SetRegulVoltageScaling(LL_PWR_REGU_VOLTAGE_SCALE1);
   LL_RCC_HSE_Enable();
@@ -269,7 +275,7 @@ void SystemClock_Config(void)
    /* Wait till HSE is ready */
   while(LL_RCC_HSE_IsReady() != 1)
   {
-    
+
   }
   LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_8, 168, LL_RCC_PLLP_DIV_2);
   LL_RCC_PLL_Enable();
@@ -277,7 +283,7 @@ void SystemClock_Config(void)
    /* Wait till PLL is ready */
   while(LL_RCC_PLL_IsReady() != 1)
   {
-    
+
   }
   LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
   LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_4);
@@ -287,7 +293,7 @@ void SystemClock_Config(void)
    /* Wait till System clock is ready */
   while(LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL)
   {
-  
+
   }
   LL_Init1msTick(168000000);
   LL_SYSTICK_SetClkSource(LL_SYSTICK_CLKSOURCE_HCLK);
@@ -325,7 +331,7 @@ void Error_Handler(void)
   * @retval None
   */
 void assert_failed(uint8_t *file, uint32_t line)
-{ 
+{
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */

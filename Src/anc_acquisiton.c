@@ -7,12 +7,15 @@
 
 #include "anc_acquisition.h"
 
+#include <stddef.h>
+
 /* Private methods declaration */
 
 static void initDma(uint16_t* bfr, uint32_t regAddr, DMA_TypeDef *DMAx, uint32_t Stream);
 static void initAdcDma(uint16_t* bfr, ADC_TypeDef *ADCx, DMA_TypeDef *DMAx, uint32_t Stream);
 static void initDacDma(uint16_t* bfr, DAC_TypeDef *DACx, uint32_t DAC_Channel, DMA_TypeDef *DMAx, uint32_t Stream);
 static void enableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream);
+static void disableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream);
 
 static inline uint32_t IsActiveMasterFlag_HT();
 static inline uint32_t IsActiveMasterFlag_TC();
@@ -39,20 +42,65 @@ void anc_acquisition_init(anc_acquisition_t* self)
     initDacDma(self->outDacBfr, ANC_OUT_DAC,
         ANC_OUT_DAC_CHANNEL, ANC_OUT_DAC_DMA,
         ANC_OUT_DAC_DMA_STREAM);
+}
 
-    /* Enable Master Transfers interrupt */
-    enableTransfersInterrupts(
-        ANC_REF_MIC_DMA, ANC_REF_MIC_DMA_STREAM);
+int  anc_acquisition_configure
+(
+    anc_acquisition_t*              self,
+    uint32_t                        chunkSize,
+    anc_acquisition_bfr_callback_t  halfBfrCallback,
+    anc_acquisition_bfr_callback_t  fullBfrCallback
+)
+{
+    if (    LL_DMA_IsEnabledStream(ANC_REF_MIC_DMA, ANC_REF_MIC_DMA_STREAM)
+        ||  LL_DMA_IsEnabledStream(ANC_ERR_MIC_DMA, ANC_ERR_MIC_DMA_STREAM)
+        ||  LL_DMA_IsEnabledStream(ANC_OUT_DAC_DMA, ANC_OUT_DAC_DMA_STREAM))
+    {
+        /* Return error */
+        return -1;  // need to do error
+    }
+    if (chunkSize > ANC_ACQUISITION_CHUNK_MAXSIZE)
+    {
+        return -2;
+    }
+    if ((self->halfBfrCallback == NULL) || (self->fullBfrCallback == NULL))
+    {
+        return -3;
+    }
+
+    self->chunkSize         = chunkSize;
+    self->halfBfrCallback   = halfBfrCallback;
+    self->fullBfrCallback   = fullBfrCallback;
+    LL_DMA_SetDataLength(ANC_REF_MIC_DMA, ANC_REF_MIC_DMA_STREAM, self->chunkSize * 2);
+    LL_DMA_SetDataLength(ANC_ERR_MIC_DMA, ANC_ERR_MIC_DMA_STREAM, self->chunkSize * 2);
+    LL_DMA_SetDataLength(ANC_OUT_DAC_DMA, ANC_OUT_DAC_DMA_STREAM, self->chunkSize * 2);
+
+    return 0;
 }
 
 void anc_acquisition_start(anc_acquisition_t* self)
 {
+    /* Enable Master Transfers interrupt */
+    enableTransfersInterrupts(
+        ANC_REF_MIC_DMA, ANC_REF_MIC_DMA_STREAM);
+
+    LL_DMA_EnableStream(ANC_REF_MIC_DMA, ANC_REF_MIC_DMA_STREAM);
+    LL_DMA_EnableStream(ANC_ERR_MIC_DMA, ANC_ERR_MIC_DMA_STREAM);
+    LL_DMA_EnableStream(ANC_OUT_DAC_DMA, ANC_OUT_DAC_DMA_STREAM);
+
     LL_TIM_EnableCounter(ANC_TRIGGER_TIMER);
 }
 
 void anc_acquisition_stop(anc_acquisition_t* self)
 {
     LL_TIM_DisableCounter(ANC_TRIGGER_TIMER);
+
+    disableTransfersInterrupts(
+        ANC_REF_MIC_DMA, ANC_REF_MIC_DMA_STREAM);
+
+    LL_DMA_DisableStream(ANC_REF_MIC_DMA, ANC_REF_MIC_DMA_STREAM);
+    LL_DMA_DisableStream(ANC_ERR_MIC_DMA, ANC_ERR_MIC_DMA_STREAM);
+    LL_DMA_DisableStream(ANC_OUT_DAC_DMA, ANC_OUT_DAC_DMA_STREAM);
 }
 
 void anc_acquisition_dmaIrqHandler(anc_acquisition_t* self)
@@ -63,7 +111,7 @@ void anc_acquisition_dmaIrqHandler(anc_acquisition_t* self)
         /* Wait for all Slaves DMA transfers to complete */
         while(!IsActiveSlavesFlag_HT());
         ClearFlags_HT();
-        anc_acquisition_bfr0_callback(
+        self->halfBfrCallback(
             self->refMicBfr,
             self->errMicBfr,
             self->outDacBfr
@@ -75,10 +123,10 @@ void anc_acquisition_dmaIrqHandler(anc_acquisition_t* self)
         /* Wait for all Slaves DMA transfers to complete */
         while(!IsActiveSlavesFlag_TC());
         ClearFlags_TC();
-        anc_acquisition_bfr1_callback(
-            &self->refMicBfr[ANC_ACQUISITION_CHUNK_SIZE],
-            &self->errMicBfr[ANC_ACQUISITION_CHUNK_SIZE],
-            &self->outDacBfr[ANC_ACQUISITION_CHUNK_SIZE]
+        self->fullBfrCallback(
+            &self->refMicBfr[self->chunkSize],
+            &self->errMicBfr[self->chunkSize],
+            &self->outDacBfr[self->chunkSize]
         );
     }
 }
@@ -92,11 +140,6 @@ static void initDma(uint16_t* bfr, uint32_t regAddr, DMA_TypeDef *DMAx, uint32_t
         regAddr);
     LL_DMA_SetMemoryAddress(DMAx, Stream,
         (uint32_t)bfr);
-    LL_DMA_SetDataLength(DMAx, Stream,
-        ANC_ACQUISITION_BFR_LENGTH);
-
-    /* Enable DMA Stream */
-    LL_DMA_EnableStream(DMAx, Stream);
 }
 
 static void initAdcDma(uint16_t* bfr, ADC_TypeDef *ADCx, DMA_TypeDef *DMAx, uint32_t Stream)
@@ -140,6 +183,19 @@ static void enableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream)
 
     /* Enable Transfer Completed interrupt */
     LL_DMA_EnableIT_TC(DMAx, Stream);
+}
+
+static void disableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream)
+{
+    /* Disable Half Transfer interrupt */
+    LL_DMA_DisableIT_HT(DMAx, Stream);
+
+    /* Disable Transfer Completed interrupt */
+    LL_DMA_DisableIT_TC(DMAx, Stream);
+
+    /* Clear all flags */
+    ClearFlags_HT();
+    ClearFlags_TC();
 }
 
 static inline uint32_t IsActiveMasterFlag_HT()

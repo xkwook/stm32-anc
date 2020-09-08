@@ -48,19 +48,6 @@ void uart_receiver_init(uart_receiver_t* self)
         (uint32_t)self->write_p);
     LL_DMA_SetDataLength(UART_RECEIVER_DMA, UART_RECEIVER_DMA_STREAM,
         DMA_TRANSFER_LENGTH);
-
-    /* Clear interrupt flags */
-#if (UART_RECEIVER_DMA_STREAM == LL_DMA_STREAM_5)
-    LL_DMA_ClearFlag_TC5(UART_RECEIVER_DMA);
-#endif
-
-    LL_USART_ClearFlag_IDLE(UART_RECEIVER_USART);
-
-    /* Enable Idle line interrupt */
-    LL_USART_EnableIT_IDLE(UART_RECEIVER_USART);
-
-    /* Enable Transfer Completed interrupt */
-    LL_DMA_EnableIT_TC(UART_RECEIVER_DMA, UART_RECEIVER_DMA_STREAM);
 }
 
 int uart_receiver_start(uart_receiver_t* self)
