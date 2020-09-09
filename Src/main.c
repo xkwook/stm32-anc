@@ -38,6 +38,8 @@
 #include "swo_logger.h"
 #include "anc_cmd.h"
 #include "anc_gain.h"
+#include "identification.h"
+#include "anc_parameters.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -61,34 +63,7 @@
 DataLogger_t      DataLogger;
 anc_acquisition_t AncAcquisition;
 uart_receiver_t   UartReceiver;
-
-/* Normal IIR with notch for 50 Hz */
-const float iir_b_coeffs[4] = {
-  0.9883,
-  -2.9635,
-  2.9635,
-  -0.9883
-};
-const float iir_a_coeffs[3] = {
-  -2.9751,
-  2.9518,
-  -0.9767
-};
-
-/* IIR with notch for 500 Hz */
-/*
-const float iir_b_coeffs[4] = {
-  0.9547,
-  -2.7187,
-  2.7187,
-  -0.9547
-};
-const float iir_a_coeffs[3] = {
-  -2.7623,
-  2.6746,
-  -0.9100
-};
-*/
+identification_t  Identification;
 
 iir_t IirRefMic;
 iir_t IirErrMic;
@@ -218,6 +193,7 @@ int main(void)
   DataLogger_Init(&DataLogger);
   anc_acquisition_init(&AncAcquisition);
   uart_receiver_init(&UartReceiver);
+  identification_init(&Identification, &AncAcquisition, anc_excitationSignal);
   SWO_LOG_INIT();
 
   /* Set all gains to default */
@@ -225,11 +201,8 @@ int main(void)
   anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_2);
   anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_2);
 
-  iir_init(&IirRefMic, iir_b_coeffs, iir_a_coeffs);
-  iir_init(&IirErrMic, iir_b_coeffs, iir_a_coeffs);
-
-  anc_acquisition_configure(&AncAcquisition, ANC_ACQUISITION_CHUNK_SIZE,
-    anc_acquisition_bfr0_callback, anc_acquisition_bfr1_callback);
+  iir_init(&IirRefMic, anc_iir_b_coeffs, anc_iir_a_coeffs);
+  iir_init(&IirErrMic, anc_iir_b_coeffs, anc_iir_a_coeffs);
 
   SWO_LOG("ANC started!");
 
@@ -244,14 +217,85 @@ int main(void)
     rcvMsg_p = uart_receiver_getMsg(&UartReceiver);
     if (rcvMsg_p != UART_RECEIVER_NO_MSG)
     {
-      anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p);
+      uint32_t stabilizingCycles = 10;
+      uint32_t sumCycles = 128;
+      uint8_t* cmdData;
+      anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
+      int32_t refGain;
+      int32_t errGain;
+      int32_t outGain;
       switch (cmd)
       {
         case ANC_CMD_START:
+          anc_acquisition_configure(&AncAcquisition, ANC_ACQUISITION_CHUNK_SIZE,
+            anc_acquisition_bfr0_callback, anc_acquisition_bfr1_callback);
           anc_acquisition_start(&AncAcquisition);
           break;
         case ANC_CMD_STOP:
           anc_acquisition_stop(&AncAcquisition);
+          break;
+        case ANC_CMD_SET_GAINS:
+          refGain = ((int32_t*)cmdData)[0];
+          errGain = ((int32_t*)cmdData)[1];
+          outGain = ((int32_t*)cmdData)[2];
+          switch (refGain)
+          {
+            case 2:
+              anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_2);
+              break;
+            case 4:
+              anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_4);
+              break;
+            case 10:
+              anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_10);
+              break;
+            case 20:
+              anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_20);
+              break;
+            default:
+              SWO_LOG("Wrong Ref gain!");
+              break;
+          }
+          switch (errGain)
+          {
+            case 2:
+              anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_2);
+              break;
+            case 4:
+              anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_4);
+              break;
+            case 10:
+              anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_10);
+              break;
+            case 20:
+              anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_20);
+              break;
+            default:
+              SWO_LOG("Wrong Err gain!");
+              break;
+          }
+          switch (outGain)
+          {
+            case 2:
+              anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_2);
+              break;
+            case 4:
+              anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_4);
+              break;
+            case 10:
+              anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_10);
+              break;
+            case 20:
+              anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_20);
+              break;
+            default:
+              SWO_LOG("Wrong Ref gain!");
+              break;
+          }
+          break;
+        case ANC_CMD_IDENTIFICATION:
+          identification_configure(&Identification, stabilizingCycles, sumCycles);
+          identification_start(&Identification);
           break;
         default:
           SWO_LOG("Unrecognized command.");
@@ -312,12 +356,6 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-int __io_putchar(int ch)
-{
-  ITM_SendChar(ch);
-  return ch;
-}
 
 /* USER CODE END 4 */
 
