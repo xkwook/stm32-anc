@@ -30,16 +30,13 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
-#include "datalogger.h"
 #include "anc_acquisition.h"
-#include "math.h"
-#include "iir.h"
 #include "uart_receiver.h"
+#include "uart_transmitter.h"
 #include "swo_logger.h"
-#include "anc_cmd.h"
-#include "anc_gain.h"
 #include "identification.h"
 #include "anc_parameters.h"
+#include "anc_application.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,7 +46,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ANC_ACQUISITION_CHUNK_SIZE    4
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,14 +56,11 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-DataLogger_t      DataLogger;
-anc_acquisition_t AncAcquisition;
-uart_receiver_t   UartReceiver;
-identification_t  Identification;
-
-iir_t IirRefMic;
-iir_t IirErrMic;
-
+anc_acquisition_t   AncAcquisition;
+uart_receiver_t     UartReceiver;
+uart_transmitter_t  UartTransmitter;
+identification_t    Identification;
+anc_application_t   AncApplication;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,72 +71,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-static inline void average_and_send(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
-{
-  static int32_t triangleCnt = 0;
-  static int32_t triangleDir = 250;
-
-  float* refMicFiltered;
-  float* errMicFiltered;
-
-  refMicFiltered = iir_perform(&IirRefMic, (int16_t*)refMicBfr);
-  errMicFiltered = iir_perform(&IirErrMic, (int16_t*)errMicBfr);
-
-  float refMicMean = 0.0;
-  float errMicMean = 0.0;
-  int32_t outDacMean = 0;
-  for (uint32_t i = 0; i < ANC_ACQUISITION_CHUNK_SIZE; i++)
-  {
-    //refMicMean += refMicBfr[i];
-    refMicMean += refMicFiltered[i];
-    errMicMean += errMicFiltered[i];
-    outDacMean += outDacBfr[i];
-  }
-  refMicMean /= ANC_ACQUISITION_CHUNK_SIZE;
-  errMicMean /= ANC_ACQUISITION_CHUNK_SIZE;
-  outDacMean /= ANC_ACQUISITION_CHUNK_SIZE;
-  outDacMean -= ANC_DAC_OFFSET;
-
-  /* Generate new DAC samples */
-  /* Triangle of tone 500 Hz */
-  for (uint32_t i = 0; i < ANC_ACQUISITION_CHUNK_SIZE; i++)
-  {
-    outDacBfr[i] = triangleCnt + ANC_DAC_OFFSET;
-    triangleCnt += triangleDir;
-  }
-  if (triangleCnt == 2000 || triangleCnt == -2000)
-  {
-    triangleDir *= -1;
-  }
-
-  DataLogger.bfr.sample[0][0] = (int8_t)(refMicMean / 16.0);
-  DataLogger.bfr.sample[1][0] = (int8_t)(errMicMean / 16.0);
-  DataLogger.bfr.sample[2][0] = (int8_t)(outDacMean / 16);
-
-  DataLogger_Log(&DataLogger);
-}
-
-void anc_acquisition_bfr0_callback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
-{
-  average_and_send(refMicBfr, errMicBfr, outDacBfr);
-}
-
-void anc_acquisition_bfr1_callback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
-{
-  static uint32_t cnt = 0;
-  if (cnt % 1000 == 0)
-  {
-    LL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-  }
-  cnt++;
-  average_and_send(refMicBfr, errMicBfr, outDacBfr);
-}
-
-void uart_receiver_onQueueFullCallback(uart_receiver_t* self)
-{
-  SWO_LOG("Uart Receiver Queue full event!");
-}
 
 /* USER CODE END 0 */
 
@@ -156,12 +83,12 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
-
+  
 
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-
+  
 
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
@@ -190,121 +117,28 @@ int main(void)
   MX_TIM2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  DataLogger_Init(&DataLogger);
+  SWO_LOG_INIT();
   anc_acquisition_init(&AncAcquisition);
   uart_receiver_init(&UartReceiver);
-  identification_init(&Identification, &AncAcquisition, anc_excitationSignal);
-  SWO_LOG_INIT();
+  uart_transmitter_init(&UartTransmitter);
+  identification_init(&Identification,
+    &AncAcquisition, anc_excitationSignal);
+  anc_application_init(&AncApplication,
+    &AncAcquisition, &UartReceiver,
+    &UartTransmitter, &Identification);
 
-  /* Set all gains to default */
-  anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_2);
-  anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_2);
-  anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_2);
-
-  iir_init(&IirRefMic, anc_iir_b_coeffs, anc_iir_a_coeffs);
-  iir_init(&IirErrMic, anc_iir_b_coeffs, anc_iir_a_coeffs);
-
-  SWO_LOG("ANC started!");
-
-  uart_receiver_start(&UartReceiver);
+  /* Start main application */
+  anc_application_start(&AncApplication);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  /* Control should never be reached here
+   * as we've started anc_application.
+   */
   while (1)
   {
-    char* rcvMsg_p;
-    rcvMsg_p = uart_receiver_getMsg(&UartReceiver);
-    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
-    {
-      uint32_t stabilizingCycles = 10;
-      uint32_t sumCycles = 128;
-      uint8_t* cmdData;
-      anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
-      int32_t refGain;
-      int32_t errGain;
-      int32_t outGain;
-      switch (cmd)
-      {
-        case ANC_CMD_START:
-          anc_acquisition_configure(&AncAcquisition, ANC_ACQUISITION_CHUNK_SIZE,
-            anc_acquisition_bfr0_callback, anc_acquisition_bfr1_callback);
-          anc_acquisition_start(&AncAcquisition);
-          break;
-        case ANC_CMD_STOP:
-          anc_acquisition_stop(&AncAcquisition);
-          break;
-        case ANC_CMD_SET_GAINS:
-          refGain = ((int32_t*)cmdData)[0];
-          errGain = ((int32_t*)cmdData)[1];
-          outGain = ((int32_t*)cmdData)[2];
-          switch (refGain)
-          {
-            case 2:
-              anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_2);
-              break;
-            case 4:
-              anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_4);
-              break;
-            case 10:
-              anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_10);
-              break;
-            case 20:
-              anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_20);
-              break;
-            default:
-              SWO_LOG("Wrong Ref gain!");
-              break;
-          }
-          switch (errGain)
-          {
-            case 2:
-              anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_2);
-              break;
-            case 4:
-              anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_4);
-              break;
-            case 10:
-              anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_10);
-              break;
-            case 20:
-              anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_20);
-              break;
-            default:
-              SWO_LOG("Wrong Err gain!");
-              break;
-          }
-          switch (outGain)
-          {
-            case 2:
-              anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_2);
-              break;
-            case 4:
-              anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_4);
-              break;
-            case 10:
-              anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_10);
-              break;
-            case 20:
-              anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_20);
-              break;
-            default:
-              SWO_LOG("Wrong Ref gain!");
-              break;
-          }
-          break;
-        case ANC_CMD_IDENTIFICATION:
-          identification_configure(&Identification, stabilizingCycles, sumCycles);
-          identification_start(&Identification);
-          break;
-        default:
-          SWO_LOG("Unrecognized command.");
-          break;
-      }
-      SWO_LOG("%s", rcvMsg_p);
-      uart_receiver_freeMsg(&UartReceiver);
-    }
-    SWO_LOG_PROCESS();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -322,7 +156,7 @@ void SystemClock_Config(void)
 
   if(LL_FLASH_GetLatency() != LL_FLASH_LATENCY_5)
   {
-  Error_Handler();
+  Error_Handler();  
   }
   LL_PWR_SetRegulVoltageScaling(LL_PWR_REGU_VOLTAGE_SCALE1);
   LL_RCC_HSE_Enable();
@@ -330,7 +164,7 @@ void SystemClock_Config(void)
    /* Wait till HSE is ready */
   while(LL_RCC_HSE_IsReady() != 1)
   {
-
+    
   }
   LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_8, 168, LL_RCC_PLLP_DIV_2);
   LL_RCC_PLL_Enable();
@@ -338,7 +172,7 @@ void SystemClock_Config(void)
    /* Wait till PLL is ready */
   while(LL_RCC_PLL_IsReady() != 1)
   {
-
+    
   }
   LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
   LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_4);
@@ -348,7 +182,7 @@ void SystemClock_Config(void)
    /* Wait till System clock is ready */
   while(LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL)
   {
-
+  
   }
   LL_Init1msTick(168000000);
   LL_SYSTICK_SetClkSource(LL_SYSTICK_CLKSOURCE_HCLK);
@@ -380,7 +214,7 @@ void Error_Handler(void)
   * @retval None
   */
 void assert_failed(uint8_t *file, uint32_t line)
-{
+{ 
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */

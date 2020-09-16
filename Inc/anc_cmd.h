@@ -8,90 +8,46 @@
 #ifndef ANC_CMD_H_
 #define ANC_CMD_H_
 
-#include "anc_gain.h"
+#include <stdint.h>
 
-#include <string.h>
-#include <stdlib.h>
+/* Available commands:
+ *  - start
+ *  - stop
+ *  - anc-on
+ *  - anc-off
+ *  - agc-on
+ *  - agc-off
+ *  - set-gains=x,y,z
+ *  - set-gains ref=x err=y out=z   # maybe this version?
+ * These work only in stop mode:
+ *  - help
+ *  - identification
+ *  - identification-get=ref
+ *  - identification-get=err
+ *  - offline-identification
+ *  - set-offline-lms-mi=x
+ *  - set-anc-lms-mi=x
+ */
 
 typedef enum
 {
     ANC_CMD_WRONG_CMD,
     ANC_CMD_START,
     ANC_CMD_STOP,
+    ANC_CMD_ANC_ON,
+    ANC_CMD_ANC_OFF,
+    ANC_CMD_AGC_ON,
+    ANC_CMD_AGC_OFF,
     ANC_CMD_SET_GAINS,
+    ANC_CMD_HELP,
+    ANC_CMD_IDENTIFICATION_GET_REF,
+    ANC_CMD_IDENTIFICATION_GET_ERR,
     ANC_CMD_IDENTIFICATION,
-    ANC_CMD_IDENTIFICATION_RESULTS,
-    ANC_CMD_OFFLINE_IDENTIFICATION
+    ANC_CMD_OFFLINE_IDENTIFICATION,
+    ANC_CMD_SET_OFFLINE_LMS_MI,
+    ANC_CMD_SET_ANC_LMS_MI
 } anc_cmd_t;
 
-#define ANC_CMD_START_STR                   "start"
-#define ANC_CMD_STOP_STR                    "stop"
-#define ANC_CMD_SET_GAINS_STR               "set-gains"
-#define ANC_CMD_IDENTIFICATION_STR          "identification"
-#define ANC_CMD_IDENTIFICATION_RESULTS_STR  "identification-results"
-#define ANC_CMD_OFFLINE_IDENTIFICATION_STR  "offline-identification"
-
-static int decodeIntegers(const char* cmd, int32_t* decodedData, const uint32_t maxNum);
-
-anc_cmd_t anc_cmd_decode(const char* const cmd, uint8_t** retCmdData)
-{
-    static uint8_t cmdData[128];
-
-    *retCmdData = NULL;
-
-    if (strncmp(cmd, ANC_CMD_START_STR, strlen(ANC_CMD_START_STR)) == 0)
-    {
-        return ANC_CMD_START;
-    }
-
-    if (strncmp(cmd, ANC_CMD_STOP_STR, strlen(ANC_CMD_STOP_STR)) == 0)
-    {
-        return ANC_CMD_STOP;
-    }
-
-    if (strncmp(cmd, ANC_CMD_SET_GAINS_STR, strlen(ANC_CMD_SET_GAINS_STR)) == 0)
-    {
-        uint32_t num = decodeIntegers(cmd, cmdData, 128 / sizeof(int32_t));
-
-        *retCmdData = cmdData;
-
-        return ANC_CMD_SET_GAINS;
-    }
-
-    if (strncmp(cmd, ANC_CMD_IDENTIFICATION_STR, strlen(ANC_CMD_IDENTIFICATION_STR)) == 0)
-    {
-        return ANC_CMD_IDENTIFICATION;
-    }
-
-    return ANC_CMD_WRONG_CMD;
-}
-
-static int decodeIntegers(const char* cmd, int32_t* decodedData, const uint32_t maxNum)
-{
-    const char delim[2] = ",";
-    char* token;
-    int num = 0;
-
-    /* Find = character and move to comma separated integers */
-    char* data_p = strchr(cmd, '=');
-    data_p++;
-
-    /* get the first token */
-    token = strtok(data_p, delim);
-
-    /* walk through other tokens */
-    while( token != NULL ) {
-        decodedData[num]
-            = (int32_t)strtol(token, (char**)NULL, 10);
-        num++;
-        if (num == maxNum)
-        {
-            break;
-        }
-        token = strtok(NULL, delim);
-    }
-
-    return num;
-}
+anc_cmd_t anc_cmd_decode(const char* const cmd, uint8_t** retCmdData);
 
 #endif /* ANC_CMD_H_ */

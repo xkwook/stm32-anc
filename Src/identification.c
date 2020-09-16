@@ -45,10 +45,14 @@ void identification_configure(
         halfBfrCallback, fullBfrCallback
     );
 
-    /* Set exctiation signal to DAC buffer */
+    /* Set exctiation signal to DAC buffer
+     * and set sum buffers to zeros.
+     */
     for (uint32_t i = 0; i < IDENTIFICATION_BFR_LENGTH; i++)
     {
         self->h_ancAcquisition->outDacBfr[i] = self->excitationSignal[i];
+        self->refMicSum[i] = 0;
+        self->errMicSum[i] = 0;
     }
 }
 
@@ -71,8 +75,8 @@ static void halfBfrCallback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* 
         /* Calculate sum across buffers */
         for (uint32_t i = 0; i < IDENTIFICATION_CHUNK_SIZE; i++)
         {
-            m_h_identification->refMicSum[i] = (uint32_t) refMicBfr[i];
-            m_h_identification->errMicSum[i] = (uint32_t) errMicBfr[i];
+            m_h_identification->refMicSum[i] += (uint32_t) refMicBfr[i];
+            m_h_identification->errMicSum[i] += (uint32_t) errMicBfr[i];
         }
     }
 }
@@ -89,9 +93,9 @@ static void fullBfrCallback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* 
         for (uint32_t i = 0; i < IDENTIFICATION_CHUNK_SIZE; i++)
         {
             m_h_identification->refMicSum[i + IDENTIFICATION_CHUNK_SIZE]
-                = (uint32_t) refMicBfr[i];
+                += (uint32_t) refMicBfr[i];
             m_h_identification->errMicSum[i + IDENTIFICATION_CHUNK_SIZE]
-                = (uint32_t) errMicBfr[i];
+                += (uint32_t) errMicBfr[i];
         }
 
         m_h_identification->sumCycles--;

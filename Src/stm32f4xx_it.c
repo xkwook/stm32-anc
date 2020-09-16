@@ -23,9 +23,9 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "datalogger.h"
 #include "anc_acquisition.h"
 #include "uart_receiver.h"
+#include "uart_transmitter.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,9 +45,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-extern DataLogger_t       DataLogger;
 extern anc_acquisition_t  AncAcquisition;
 extern uart_receiver_t    UartReceiver;
+extern uart_transmitter_t UartTransmitter;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -277,7 +277,7 @@ void DMA2_Stream5_IRQHandler(void)
 void DMA2_Stream7_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA2_Stream7_IRQn 0 */
-  DataLogger_DmaIrqHandler(&DataLogger);
+  uart_transmitter_dmaIrqHandler(&UartTransmitter);
   /* USER CODE END DMA2_Stream7_IRQn 0 */
   
   /* USER CODE BEGIN DMA2_Stream7_IRQn 1 */
