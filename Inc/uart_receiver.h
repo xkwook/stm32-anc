@@ -45,7 +45,7 @@ char* uart_receiver_getMsg(uart_receiver_t* self);
 
 void uart_receiver_freeMsg(uart_receiver_t* self);
 
-__attribute__((__weak__)) void uart_receiver_onQueueFullCallback(uart_receiver_t* self);
+__attribute__((weak)) void uart_receiver_onQueueFullCallback(uart_receiver_t* self);
 
 void uart_receiver_dmaIrqHandler(uart_receiver_t* self);
 

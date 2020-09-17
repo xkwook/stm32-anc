@@ -41,6 +41,6 @@ void identification_start(identification_t* self);
 
 uint32_t identification_isDone(identification_t* self);
 
-__attribute__((__weak__)) void identification_onDoneCallback(uint32_t* refMicSum, uint32_t* errMicSum);
+__attribute__((weak)) void identification_onDoneCallback(uint32_t* refMicSum, uint32_t* errMicSum);
 
 #endif /* IDENTIFICATION_H_ */

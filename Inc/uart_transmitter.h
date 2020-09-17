@@ -33,7 +33,7 @@ int uart_transmitter_setMsg(uart_transmitter_t* self, uint8_t* msg, uint32_t len
 
 int uart_transmitter_send(uart_transmitter_t* self);
 
-__attribute__((__weak__)) void uart_transmitter_transferCpltCallback(uart_transmitter_t* self);
+__attribute__((weak)) void uart_transmitter_transferCpltCallback(uart_transmitter_t* self);
 
 void uart_transmitter_dmaIrqHandler(uart_transmitter_t* self);
 

@@ -44,6 +44,6 @@ int  DataLogger_Log(DataLogger_t* self);
 
 void DataLogger_DmaIrqHandler(DataLogger_t* self);
 
-__attribute__((__weak__)) void DataLogger_TransferCpltCallback(DataLogger_t* self);
+__attribute__((weak)) void DataLogger_TransferCpltCallback(DataLogger_t* self);
 
 #endif /* DATALOGGER_H_ */
