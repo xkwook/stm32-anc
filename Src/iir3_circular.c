@@ -67,7 +67,7 @@ inline void iir3_circular_calculate(iir3_circular_t* self)
 
 static inline q15_t calculate_stage0(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q15_t* b, q15_t* a)
 {
-    q15_t ret;
+    q15_t result;
 
     q31_t acc0, acc1, sum0;
 
@@ -92,14 +92,14 @@ static inline q15_t calculate_stage0(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q
     sum0 = acc0 + acc1;
 
     /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    ret = (q15_t) (__SSAT((sum0 >> 15), 16));
+    result = (q15_t) (__SSAT((sum0 >> 15), 16));
 
-    return ret;
+    return result;
 }
 
 static inline q15_t calculate_stage1(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q15_t* b, q15_t* a)
 {
-    q15_t ret;
+    q15_t result;
 
     q31_t acc0, acc1, sum0;
 
@@ -124,14 +124,14 @@ static inline q15_t calculate_stage1(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q
     sum0 = acc0 + acc1;
 
     /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    ret = (q15_t) (__SSAT((sum0 >> 15), 16));
+    result = (q15_t) (__SSAT((sum0 >> 15), 16));
 
-    return ret;
+    return result;
 }
 
 static inline q15_t calculate_stage2(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q15_t* b, q15_t* a)
 {
-    q15_t ret;
+    q15_t result;
 
     q31_t acc0, acc1, sum0;
 
@@ -156,14 +156,14 @@ static inline q15_t calculate_stage2(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q
     sum0 = acc0 + acc1;
 
     /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    ret = (q15_t) (__SSAT((sum0 >> 15), 16));
+    result = (q15_t) (__SSAT((sum0 >> 15), 16));
 
-    return ret;
+    return result;
 }
 
 static inline q15_t calculate_stage3(q15_t* x, q15_t* y, q15_t* b, q15_t* a)
 {
-    q15_t ret;
+    q15_t result;
 
     q31_t acc0, acc1, sum0;
 
@@ -188,7 +188,7 @@ static inline q15_t calculate_stage3(q15_t* x, q15_t* y, q15_t* b, q15_t* a)
     sum0 = acc0 + acc1;
 
     /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    ret = (q15_t) (__SSAT((sum0 >> 15), 16));
+    result = (q15_t) (__SSAT((sum0 >> 15), 16));
 
-    return ret;
+    return result;
 }

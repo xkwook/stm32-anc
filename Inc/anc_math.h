@@ -15,4 +15,6 @@ typedef int16_t q15_t;
 
 typedef int32_t q31_t;
 
+typedef int64_t q63_t;
+
 #endif
