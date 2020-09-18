@@ -9,6 +9,9 @@
 
 /* Private defines */
 
+#define DISABLED            0
+#define ENABLED             1
+
 #define GAIN_2              2u
 #define GAIN_4              4u
 #define GAIN_10             10u
@@ -33,11 +36,27 @@ static inline anc_gain_t update_gain(anc_gain_t gain, uint16_t ampMargin);
 
 void agc_init(agc_t* self)
 {
+    self->enable  = DISABLED;
     self->counter = AGC_HORIZON;
 
     init_channel(&(self->refChannel));
     init_channel(&(self->errChannel));
     init_channel(&(self->outChannel));
+}
+
+void agc_enable(agc_t* self)
+{
+    if (self->enable == DISABLED)
+    {
+        agc_init(self);
+
+        self->enable = ENABLED;
+    }
+}
+
+void agc_disable(agc_t* self)
+{
+    self->enable = DISABLED;
 }
 
 inline void agc_adapt(
@@ -52,89 +71,92 @@ inline void agc_adapt(
     uint16_t marginRef1, marginErr1, marginOut1;
     uint32_t i;
 
-    /* Load Amplitude Margin variables */
-    ampMarginRef = self->refChannel.ampMargin;
-    ampMarginErr = self->errChannel.ampMargin;
-    ampMarginOut = self->outChannel.ampMargin;
-
-    for (i = 0; i < AGC_CHUNK_SIZE; i++)
+    if (self->enable == ENABLED)
     {
-        /* Load samples as margins to zero */
-        marginRef0 = *refData_p++;
-        marginErr0 = *errData_p++;
-        marginOut0 = *outData_p++;
+        /* Load Amplitude Margin variables */
+        ampMarginRef = self->refChannel.ampMargin;
+        ampMarginErr = self->errChannel.ampMargin;
+        ampMarginOut = self->outChannel.ampMargin;
 
-        /* Calculate margins to 1 (4095) - max ADC value */
-        marginRef1 = 4095 - marginRef0;
-        marginErr1 = 4095 - marginErr0;
-        marginOut1 = 4095 - marginOut0;
+        for (i = 0; i < AGC_CHUNK_SIZE; i++)
+        {
+            /* Load samples as margins to zero */
+            marginRef0 = *refData_p++;
+            marginErr0 = *errData_p++;
+            marginOut0 = *outData_p++;
 
-        /* Check ref margins */
-        if (marginRef0 < ampMarginRef)
-        {
-            ampMarginRef = marginRef0;
-        }
-        if (marginRef1 < ampMarginRef)
-        {
-            ampMarginRef = marginRef1;
+            /* Calculate margins to 1 (4095) - max ADC value */
+            marginRef1 = 4095 - marginRef0;
+            marginErr1 = 4095 - marginErr0;
+            marginOut1 = 4095 - marginOut0;
+
+            /* Check ref margins */
+            if (marginRef0 < ampMarginRef)
+            {
+                ampMarginRef = marginRef0;
+            }
+            if (marginRef1 < ampMarginRef)
+            {
+                ampMarginRef = marginRef1;
+            }
+
+            /* Check err margins */
+            if (marginErr0 < ampMarginErr)
+            {
+                ampMarginErr = marginErr0;
+            }
+            if (marginErr1 < ampMarginErr)
+            {
+                ampMarginErr = marginErr1;
+            }
+
+            /* Check out margins */
+            if (marginOut0 < ampMarginOut)
+            {
+                ampMarginOut = marginOut0;
+            }
+            if (marginOut1 < ampMarginOut)
+            {
+                ampMarginOut = marginOut1;
+            }
         }
 
-        /* Check err margins */
-        if (marginErr0 < ampMarginErr)
+        /* Decrement counter and update gains at the end of horizon */
+        if (self->counter > 0u)
         {
-            ampMarginErr = marginErr0;
+            /* Decrement horizon counter */
+            (self->counter)--;
         }
-        if (marginErr1 < ampMarginErr)
+        else
         {
-            ampMarginErr = marginErr1;
+            anc_gain_t refGain, errGain, outGain;
+
+            refGain = anc_gain_refGet();
+            errGain = anc_gain_errGet();
+            outGain = anc_gain_outGet();
+
+            /* Update gains */
+            anc_gain_refSet(
+                update_gain(refGain, ampMarginRef)
+            );
+
+            anc_gain_errSet(
+                update_gain(errGain, ampMarginErr)
+            );
+
+            anc_gain_outSet(
+                update_gain(outGain, ampMarginOut)
+            );
+
+            /* Reset counter */
+            self->counter = AGC_HORIZON;
         }
 
-        /* Check out margins */
-        if (marginOut0 < ampMarginOut)
-        {
-            ampMarginOut = marginOut0;
-        }
-        if (marginOut1 < ampMarginOut)
-        {
-            ampMarginOut = marginOut1;
-        }
+        /* Save result margins for block */
+        self->refChannel.ampMargin = ampMarginRef;
+        self->errChannel.ampMargin = ampMarginErr;
+        self->outChannel.ampMargin = ampMarginOut;
     }
-
-    /* Decrement counter and update gains at the end of horizon */
-    if (self->counter > 0u)
-    {
-        /* Decrement horizon counter */
-        (self->counter)--;
-    }
-    else
-    {
-        anc_gain_t refGain, errGain, outGain;
-
-        refGain = anc_gain_refGet();
-        errGain = anc_gain_errGet();
-        outGain = anc_gain_outGet();
-
-        /* Update gains */
-        anc_gain_refSet(
-            update_gain(refGain, ampMarginRef)
-        );
-
-        anc_gain_errSet(
-            update_gain(errGain, ampMarginErr)
-        );
-
-        anc_gain_outSet(
-            update_gain(outGain, ampMarginOut)
-        );
-
-        /* Reset counter */
-        self->counter = AGC_HORIZON;
-    }
-
-    /* Save result margins for block */
-    self->refChannel.ampMargin = ampMarginRef;
-    self->errChannel.ampMargin = ampMarginErr;
-    self->outChannel.ampMargin = ampMarginOut;
 }
 
 /* Private methods definition */

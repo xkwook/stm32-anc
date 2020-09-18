@@ -26,6 +26,7 @@ typedef struct agc_channel_struct agc_channel_t;
 
 struct agc_struct
 {
+    uint32_t        enable;
     uint32_t        counter;
     agc_channel_t   refChannel;
     agc_channel_t   errChannel;
@@ -38,6 +39,10 @@ typedef struct agc_struct agc_t;
 /* Public methods declaration */
 
 void agc_init(agc_t* self);
+
+void agc_enable(agc_t* self);
+
+void agc_disable(agc_t* self);
 
 inline void agc_adapt(
     agc_t*      self,
