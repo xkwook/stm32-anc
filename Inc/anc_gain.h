@@ -12,21 +12,22 @@
 
 typedef enum
 {
-    ANC_GAIN_REF_MIC,
-    ANC_GAIN_ERR_MIC,
-    ANC_GAIN_OUT_DAC
-} anc_gain_channel_t;
-
-typedef enum
-{
-    ANC_GAIN_2,
-    ANC_GAIN_4,
-    ANC_GAIN_10,
-    ANC_GAIN_20
+    ANC_GAIN_2  = 0,
+    ANC_GAIN_4  = 1,
+    ANC_GAIN_10 = 2,
+    ANC_GAIN_20 = 3
 } anc_gain_t;
 
-void anc_gain_set(anc_gain_channel_t channel, anc_gain_t gain);
+inline void anc_gain_refSet(anc_gain_t gain);
 
-anc_gain_t anc_gain_get(anc_gain_channel_t channel);
+inline void anc_gain_errSet(anc_gain_t gain);
+
+inline void anc_gain_outSet(anc_gain_t gain);
+
+inline anc_gain_t anc_gain_refGet(void);
+
+inline anc_gain_t anc_gain_errGet(void);
+
+inline anc_gain_t anc_gain_outGet(void);
 
 #endif /* ANC_GAIN_H_ */

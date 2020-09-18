@@ -36,9 +36,13 @@ void anc_algorithm_calculate(anc_algorithm_t* self)
 
     /* At first AGC ? */
 
-    /* Get data -> IIR */
+    /* Convert data to q15 buffer */
 
-    /* Then FIR and decimate */
+    /* FIR and decimate */
+
+    /* Then IIR3 */
+
+    /* Has DMA mem2mem finished? */
 
     /* Filter Ref with Sn Path */
 
@@ -48,7 +52,9 @@ void anc_algorithm_calculate(anc_algorithm_t* self)
 
     /* Filter Ref with Wn Path and calculate u */
 
-    /* Interpolate u with FIR and set to DAC */
+    /* Interpolate u with FIR */
+
+    /* Convert from q15 to DAC format */
 
     /* Run DMA mem2mem for shifting states */
 }
