@@ -9,13 +9,6 @@
 
 #include <string.h>
 
-/* Private methods declaration */
-
-static inline q15_t calculate_stage0(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q15_t* b, q15_t* a);
-static inline q15_t calculate_stage1(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q15_t* b, q15_t* a);
-static inline q15_t calculate_stage2(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q15_t* b, q15_t* a);
-static inline q15_t calculate_stage3(q15_t* x, q15_t* y, q15_t* b, q15_t* a);
-
 /* Public methods definition */
 
 void iir3_circular_init(
@@ -28,167 +21,82 @@ void iir3_circular_init(
 {
     self->b_coeffs_p    = b_coeffs_p;
     self->a_coeffs_p    = a_coeffs_p;
-    self->oldDataIn_p   = oldDataIn_p;
-    self->oldDataOut_p  = oldDataOut_p;
-
-    memset(self->dataIn, 0, sizeof(self->dataIn));
-    memset(self->dataOut, 0, sizeof(self->dataOut));
+    self->x2_p          = oldDataIn_p;
+    self->y2_p          = oldDataOut_p;
+    self->x3            = 0;
+    self->x1            = 0;
+    self->x0            = 0;
+    self->y1            = 0;
+    self->y0            = 0;
 }
 
-inline q15_t* iir3_circular_getDataInPtr(iir3_circular_t* self)
+inline void iir3_circular_pushData(
+    iir3_circular_t*    self,
+    q15_t               dataIn
+)
 {
-    return self->dataIn;
+    self->x3 = dataIn;
 }
 
-inline q15_t* iir3_circular_getDataOutPtr(iir3_circular_t* self)
+inline q15_t* iir3_circular_getOldDataInPtr(iir3_circular_t* self)
 {
-    return self->dataOut;
+    return &(self->x3);
 }
 
-inline void iir3_circular_calculate(iir3_circular_t* self)
+inline q15_t* iir3_circular_getOldDataOutPtr(iir3_circular_t* self)
 {
-    q15_t* x  = self->dataIn;
-    q15_t* y  = self->dataOut;
-    q15_t* x_ = self->oldDataIn_p;
-    q15_t* y_ = self->oldDataOut_p;
-    q15_t* b  = self->b_coeffs_p;
-    q15_t* a  = self->a_coeffs_p;
-
-    y[0] = calculate_stage0(x, y, x_, y_, b, a);
-    y[1] = calculate_stage1(x, y, x_, y_, b, a);
-    y[2] = calculate_stage2(x, y, x_, y_, b, a);
-    for (uint32_t i = 0; i < (IIR3_CIRCULAR_DATA_CHUNK - IIR3_CIRCULAR_MIN_CHUNK); i++)
-    {
-        y[i + IIR3_CIRCULAR_MIN_CHUNK] = calculate_stage3(x + i, y + i, b, a);
-    }
+    return &(self->y1);
 }
 
-/* Private methods definition */
-
-static inline q15_t calculate_stage0(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q15_t* b, q15_t* a)
+inline q15_t iir3_circular_calculate(iir3_circular_t* self)
 {
-    q15_t result;
-
-    q31_t acc0, acc1, sum0;
-
-    const uint32_t END = IIR3_CIRCULAR_DATA_CHUNK - 1;
+    q15_t  x2   = *(self->x2_p);
+    q15_t  y2   = *(self->y2_p);
+    q15_t* c0_p = self->b_coeffs_p;
+    q15_t* c1_p = self->b_coeffs_p + 2;
+    q15_t  c0, c1;
+    q31_t  acc0, acc1, sum0;
 
     acc0 = 0;
     acc1 = 0;
 
-    /* Perform the multiply-accumulate for x(n) ... x(n-3) */
-    acc0 += b[0] * x[0];
-    acc1 += b[1] * x_[END];
+    /* Load coeffs */
+    c0 = *c0_p++;
+    c1 = *c1_p++;
 
-    acc0 += b[2] * x_[END - 1];
-    acc1 += b[3] * x_[END - 2];
+    /* Perform multiply-accumulate */
+    acc0 += self->x3 * c0;
+    acc1 += self->x1 * c1;
 
-    /* Perform the multiply-accumulate for y(n-1) ... y(n-3) */
-    acc0 += a[0] * y_[END];
-    acc1 += a[1] * y_[END - 1];
+    /* Load coeffs */
+    c0 = *c0_p;
+    c1 = *c1_p;
 
-    acc0 += a[2] * y_[END - 2];
+    /* Perform multiply-accumulate */
+    acc0 += x2 * c0;
+    acc1 += self->x0 * c1;
 
+    /* Set new coeffs for y */
+    c0_p = self->a_coeffs_p;
+
+    /* Load coeffs */
+    c0 = *c0_p++;
+    c1 = *(c0_p + 2);
+
+    /* Perform multiply-substract */
+    acc0 -= y2 * c0;
+    acc1 -= self->y0 * c1;
+
+    /* Last multiply-substract */
+    acc0 -= self->y1 * c0;
+
+    /* Sum results */
     sum0 = acc0 + acc1;
 
+    /* Now shift with calculation of result */
+    self->y0 = y2;
     /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    result = (q15_t) (__SSAT((sum0 >> 15), 16));
+    self->y1 = (q15_t) (__SSAT((sum0 >> 15), 16));
 
-    return result;
-}
-
-static inline q15_t calculate_stage1(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q15_t* b, q15_t* a)
-{
-    q15_t result;
-
-    q31_t acc0, acc1, sum0;
-
-    const uint32_t END = IIR3_CIRCULAR_DATA_CHUNK - 1;
-
-    acc0 = 0;
-    acc1 = 0;
-
-    /* Perform the multiply-accumulate for x(n) ... x(n-3) */
-    acc0 += b[0] * x[1];
-    acc1 += b[1] * x[0];
-
-    acc0 += b[2] * x_[END];
-    acc1 += b[3] * x_[END - 1];
-
-    /* Perform the multiply-accumulate for y(n-1) ... y(n-3) */
-    acc0 += a[0] * y[0];
-    acc1 += a[1] * y_[END];
-
-    acc0 += a[2] * y_[END - 1];
-
-    sum0 = acc0 + acc1;
-
-    /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    result = (q15_t) (__SSAT((sum0 >> 15), 16));
-
-    return result;
-}
-
-static inline q15_t calculate_stage2(q15_t* x, q15_t* y, q15_t* x_, q15_t* y_, q15_t* b, q15_t* a)
-{
-    q15_t result;
-
-    q31_t acc0, acc1, sum0;
-
-    const uint32_t END = IIR3_CIRCULAR_DATA_CHUNK - 1;
-
-    acc0 = 0;
-    acc1 = 0;
-
-    /* Perform the multiply-accumulate for x(n) ... x(n-3) */
-    acc0 += b[0] * x[2];
-    acc1 += b[1] * x[1];
-
-    acc0 += b[2] * x[0];
-    acc1 += b[3] * x_[END];
-
-    /* Perform the multiply-accumulate for y(n-1) ... y(n-3) */
-    acc0 += a[0] * y[1];
-    acc1 += a[1] * y[0];
-
-    acc0 += a[2] * y_[END];
-
-    sum0 = acc0 + acc1;
-
-    /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    result = (q15_t) (__SSAT((sum0 >> 15), 16));
-
-    return result;
-}
-
-static inline q15_t calculate_stage3(q15_t* x, q15_t* y, q15_t* b, q15_t* a)
-{
-    q15_t result;
-
-    q31_t acc0, acc1, sum0;
-
-    const uint32_t END = IIR3_CIRCULAR_DATA_CHUNK - 1;
-
-    acc0 = 0;
-    acc1 = 0;
-
-    /* Perform the multiply-accumulate for x(n) ... x(n-3) */
-    acc0 += b[0] * x[3];
-    acc1 += b[1] * x[2];
-
-    acc0 += b[2] * x[1];
-    acc1 += b[3] * x[0];
-
-    /* Perform the multiply-accumulate for y(n-1) ... y(n-3) */
-    acc0 += a[0] * y[2];
-    acc1 += a[1] * y[1];
-
-    acc0 += a[2] * y[0];
-
-    sum0 = acc0 + acc1;
-
-    /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    result = (q15_t) (__SSAT((sum0 >> 15), 16));
-
-    return result;
+    return self->y1;
 }

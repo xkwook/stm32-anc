@@ -5,8 +5,8 @@
  *      Author: klukomski
  */
 
-#ifndef FIR_DECIMATE_H_
-#define FIR_DECIMATE_H_
+#ifndef FIR_CIRCULAR_DECIMATE_H_
+#define FIR_CIRCULAR_DECIMATE_H_
 
 #include "anc_math.h"
 
