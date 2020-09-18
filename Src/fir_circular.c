@@ -32,7 +32,11 @@ inline void fir_circular_pushData(
     q15_t           dataIn
 )
 {
-    self->dataIn = dataIn;
+    self->dataIn        = dataIn;
+
+    /* Put new and old data to state buffer */
+    self->stateBfr_p[0] = dataIn;
+    self->stateBfr_p[1] = *(self->oldDataIn_p);
 }
 
 inline q15_t* fir_circular_getDataInPtr(
@@ -56,16 +60,16 @@ inline q15_t fir_circular_calculate(
     q15_t  result;
     uint32_t tapCnt;
     uint32_t secondHalfIdx;
+    uint32_t n;
 
-    secondHalfIdx = self->length >> 1u;
+    /* Load n */
+    n = self->length;
+
+    secondHalfIdx = n >> 1u;
 
     /* Zero accumulators */
     acc0 = 0;
     acc1 = 0;
-
-    /* Put new and old data to state buffer */
-    self->stateBfr_p[0] = self->dataIn;
-    self->stateBfr_p[1] = *(self->oldDataIn_p);
 
     /* Init state pointers */
     x0_p = self->stateBfr_p;
@@ -76,14 +80,14 @@ inline q15_t fir_circular_calculate(
     c1_p = self->coeffs_p + secondHalfIdx;
 
     /* Set tapCnt to blocks of 8 samples */
-    tapCnt = self->length >> 3u;
+    tapCnt = n >> 3u;
 
     /* Process blocks of 8 samples */
     while (tapCnt > 0u)
     {
         /* Load state variables */
-        x0 = *x0_p--;
-        x1 = *x1_p--;
+        x0 = *x0_p++;
+        x1 = *x1_p++;
 
         /* Load coeffs */
         c0 = *c0_p++;
@@ -94,8 +98,8 @@ inline q15_t fir_circular_calculate(
         acc1 += x1 * c1;
 
         /* Load state variables */
-        x0 = *x0_p--;
-        x1 = *x1_p--;
+        x0 = *x0_p++;
+        x1 = *x1_p++;
 
         /* Load coeffs */
         c0 = *c0_p++;
@@ -106,8 +110,8 @@ inline q15_t fir_circular_calculate(
         acc1 += x1 * c1;
 
         /* Load state variables */
-        x0 = *x0_p--;
-        x1 = *x1_p--;
+        x0 = *x0_p++;
+        x1 = *x1_p++;
 
         /* Load coeffs */
         c0 = *c0_p++;
@@ -118,8 +122,8 @@ inline q15_t fir_circular_calculate(
         acc1 += x1 * c1;
 
         /* Load state variables */
-        x0 = *x0_p--;
-        x1 = *x1_p--;
+        x0 = *x0_p++;
+        x1 = *x1_p++;
 
         /* Load coeffs */
         c0 = *c0_p++;

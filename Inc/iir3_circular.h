@@ -10,7 +10,7 @@
 
 #include "anc_math.h"
 
-struct iir3_struct {
+struct iir3_circular_struct {
     q15_t*  b_coeffs_p;
     q15_t*  a_coeffs_p;
     q15_t   x0;
@@ -22,9 +22,9 @@ struct iir3_struct {
     q15_t*  y2_p;
 };
 
-typedef struct iir3_struct iir3_circular_t;
+typedef struct iir3_circular_struct iir3_circular_t;
 
-/* Public methods definition */
+/* Public methods declaration */
 
 void iir3_circular_init(
     iir3_circular_t*    self,
