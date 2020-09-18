@@ -107,16 +107,16 @@ void SetGains(anc_application_t* self, uint8_t* cmdData)
     switch (refGain)
     {
         case 2:
-        anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_2);
+        anc_gain_refSet(ANC_GAIN_2);
         break;
         case 4:
-        anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_4);
+        anc_gain_refSet(ANC_GAIN_4);
         break;
         case 10:
-        anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_10);
+        anc_gain_refSet(ANC_GAIN_10);
         break;
         case 20:
-        anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_20);
+        anc_gain_refSet(ANC_GAIN_20);
         break;
         default:
         SWO_LOG("Wrong Ref gain!");
@@ -125,16 +125,16 @@ void SetGains(anc_application_t* self, uint8_t* cmdData)
     switch (errGain)
     {
         case 2:
-        anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_2);
+        anc_gain_errSet(ANC_GAIN_2);
         break;
         case 4:
-        anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_4);
+        anc_gain_errSet(ANC_GAIN_4);
         break;
         case 10:
-        anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_10);
+        anc_gain_errSet(ANC_GAIN_10);
         break;
         case 20:
-        anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_20);
+        anc_gain_errSet(ANC_GAIN_20);
         break;
         default:
         SWO_LOG("Wrong Err gain!");
@@ -143,16 +143,16 @@ void SetGains(anc_application_t* self, uint8_t* cmdData)
     switch (outGain)
     {
         case 2:
-        anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_2);
+        anc_gain_outSet(ANC_GAIN_2);
         break;
         case 4:
-        anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_4);
+        anc_gain_outSet(ANC_GAIN_4);
         break;
         case 10:
-        anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_10);
+        anc_gain_outSet(ANC_GAIN_10);
         break;
         case 20:
-        anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_20);
+        anc_gain_outSet(ANC_GAIN_20);
         break;
         default:
         SWO_LOG("Wrong Out gain!");
@@ -190,9 +190,9 @@ void anc_application_init(
     self->identificationState = ANC_APPLICATION_IDENTIFICATION_EMPTY;
 
     /* Set all gains to default */
-    anc_gain_set(ANC_GAIN_REF_MIC, ANC_GAIN_2);
-    anc_gain_set(ANC_GAIN_ERR_MIC, ANC_GAIN_2);
-    anc_gain_set(ANC_GAIN_OUT_DAC, ANC_GAIN_2);
+    anc_gain_refSet(ANC_GAIN_2);
+    anc_gain_errSet(ANC_GAIN_2);
+    anc_gain_outSet(ANC_GAIN_2);
 
     rubbish_init(self);
 }
