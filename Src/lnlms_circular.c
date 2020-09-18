@@ -80,10 +80,6 @@ inline void lnlms_circular_update(
     /* Calculate weighting factor with the use of floats */
     w = weightingFactor((q15_t) energy, error, self->mu_f);
 
-    /* Zero accumulators */
-    acc0 = 0;
-    acc1 = 0;
-
     /* Init state pointers */
     x0_p = self->stateBfr_p;
     x1_p = self->stateBfr_p + secondHalfIdx;
@@ -99,6 +95,54 @@ inline void lnlms_circular_update(
     while (tapCnt > 0u)
     {
         /* Load state variables */
+        x0 = *x0_p++;
+        x1 = *x1_p++;
+
+        /* Multiply by leakage factor */
+        c0 = alpha * (*c0_p);
+        c1 = alpha * (*c1_p);
+
+        /* Perform multiply-accumulate */
+        c0 += w * x0;
+        c1 += w * x1;
+
+        /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
+        *c0_p++ = (q15_t) __SSAT((c0 >> 15), 16);
+        *c1_p++ = (q15_t) __SSAT((c1 >> 15), 16);
+
+        /* Load state variables */
+        x0 = *x0_p++;
+        x1 = *x1_p++;
+
+        /* Multiply by leakage factor */
+        c0 = alpha * (*c0_p);
+        c1 = alpha * (*c1_p);
+
+        /* Perform multiply-accumulate */
+        c0 += w * x0;
+        c1 += w * x1;
+
+        /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
+        *c0_p++ = (q15_t) __SSAT((c0 >> 15), 16);
+        *c1_p++ = (q15_t) __SSAT((c1 >> 15), 16);
+
+        /* Load state variables */
+        x0 = *x0_p++;
+        x1 = *x1_p++;
+
+        /* Multiply by leakage factor */
+        c0 = alpha * (*c0_p);
+        c1 = alpha * (*c1_p);
+
+        /* Perform multiply-accumulate */
+        c0 += w * x0;
+        c1 += w * x1;
+
+        /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
+        *c0_p++ = (q15_t) __SSAT((c0 >> 15), 16);
+        *c1_p++ = (q15_t) __SSAT((c1 >> 15), 16);
+
+            /* Load state variables */
         x0 = *x0_p++;
         x1 = *x1_p++;
 

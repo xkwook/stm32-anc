@@ -10,13 +10,9 @@
 
 #include "main.h"
 
-#define DATALOGGER_SAMPLE_TYPE      uint8_t
+#define DATALOGGER_SAMPLE_TYPE      q15_t
 #define DATALOGGER_SAMPLE_CHANNELS  3
 #define DATALOGGER_SAMPLE_BURST     1
-
-#define DATALOGGER_USART            USART1
-#define DATALOGGER_DMA              DMA2
-#define DATALOGGER_DMA_STREAM       LL_DMA_STREAM_7
 
 /* Logging data structure */
 

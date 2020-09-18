@@ -25,8 +25,8 @@
  *  - identification-get=ref
  *  - identification-get=err
  *  - offline-identification
- *  - set-offline-lms-mi=x
- *  - set-anc-lms-mi=x
+ *  - set-offline-lms-mu=x
+ *  - set-anc-lms-mu=x
  */
 
 typedef enum

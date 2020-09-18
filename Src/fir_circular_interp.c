@@ -47,53 +47,6 @@ inline void fir_circular_interp_calculate(
 {
     q15_t* x0_p;
     q15_t* x1_p;
-    q15_t* c0_p;
-    q15_t* c1_p;
-    q15_t x0, x1;
-    q15_t c0, c1;
-    q31_t acc0, acc1, sum0;
-    uint32_t i;
-
-    /* Zero accumulators */
-    acc0 = 0;
-    acc1 = 0;
-
-    /* Load first samples */
-    x0 = self->dataIn;
-    x1 = *(self->oldDataIn_p);
-
-    /* Load first coeffs */
-    c0 = *(self->coeffs_p);
-    c1 = *(self->coeffs_p + FIR_CIRCULAR_INTERP_CHUNK_SIZE);
-
-    /* Perform multiply-acumulate */
-    acc0 += c0 * x0;
-    acc1 += c1 * x1;
-
-    /* Load state pointers */
-    x0_p = self->stateBfr;
-    x1_p = self->stateBfr + FIR_CIRCULAR_INTERP_BFR_SIZE / 2;
-
-    /* Load coeffs pointers */
-    c0_p = self->coeffs_p + FIR_CIRCULAR_INTERP_CHUNK_SIZE;
-    c1_p = self->coeffs_p + (FIR_CIRCULAR_INTERP_BFR_SIZE / 2 + 1)
-         * FIR_CIRCULAR_INTERP_CHUNK_SIZE;
-
-    /* Load states */
-    x0 = *x0_p++;
-    x1 = *x1_p++;
-
-    /* Load coeffs */
-    c0_p
-}
-
-inline void fir_circular_interp_calculate(
-    fir_circular_interp_t*  self,
-    q15_t*                  dataOut_p
-)
-{
-    q15_t* x0_p;
-    q15_t* x1_p;
     q15_t* c_p;
     q15_t x0, x0_old, x0_new;
     q15_t c0, c1, c2, c3;

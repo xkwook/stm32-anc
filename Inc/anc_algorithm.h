@@ -1,16 +1,21 @@
 /*
  * anc_algorithm.h
  *
- *  Created on: Sep 16, 2020
+ *  Created on: Sep 18, 2020
  *      Author: klukomski
  */
 
 #ifndef ANC_ALGORITHM_H_
 #define ANC_ALGORITHM_H_
 
-#include <stdint.h>
+#include "anc_math.h"
 
+#include "anc_processing.h"
+
+#include "fir_circular.h"
+#include "lnlms_circular.h"
 #include "dma_mem2mem.h"
+
 
 typedef struct __attribute__((packed, aligned(sizeof(uint32_t)))))
 {
@@ -19,44 +24,28 @@ typedef struct __attribute__((packed, aligned(sizeof(uint32_t)))))
 
 struct anc_algorithm_struct
 {
-    anc_algorithm_data_t    data;
+    uint32_t                    enable;
+    q15_t*                      Sn_coeffs_p;
+    fir_circular_t              fir_Sn;
+    fir_circular_t              fir_Wn;
+    lnlms_circular_t            lnlms;
+    anc_algorithm_data_t        data;
 };
 
 typedef struct anc_algorithm_struct anc_algorithm_t;
 
+
+/* Public methods declaration */
+
 void anc_algorithm_init(anc_algorithm_t* self);
 
-void anc_algorithm_enable(anc_algorithm_t* self);
+inline void anc_algorithm_enable(anc_algorithm_t* self);
 
-void anc_algorithm_disable(anc_algorithm_t* self);
+inline void anc_algorithm_disable(anc_algorithm_t* self);
 
-void anc_algorithm_calculate(anc_algorithm_t* self)
-{
-    /* Set new gains ? */
-
-    /* At first AGC ? */
-
-    /* Convert data to q15 buffer */
-
-    /* FIR and decimate */
-
-    /* Then IIR3 */
-
-    /* Has DMA mem2mem finished? */
-
-    /* Filter Ref with Sn Path */
-
-    /* Update Filtered-X squared sum */
-
-    /* Update Wn using LNFxLMS algorithm */
-
-    /* Filter Ref with Wn Path and calculate u */
-
-    /* Interpolate u with FIR */
-
-    /* Convert from q15 to DAC format */
-
-    /* Run DMA mem2mem for shifting states */
-}
+inline q15_t anc_algorithm_calculate(
+    anc_algorithm_t*                    self,
+    anc_processing_preprocessing_data_t samples
+);
 
 #endif /* ANC_ALGORITHM_H_ */

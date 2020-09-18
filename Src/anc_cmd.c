@@ -24,8 +24,8 @@
 #define IDENTIFICATION_GET_ERR_STR  "identification-get=err"
 #define IDENTIFICATION_STR          "identification"
 #define OFFLINE_IDENTIFICATION_STR  "offline-identification"
-#define SET_OFFLINE_LMS_MI_STR      "set-offline-lms-mi"
-#define SET_ANC_LMS_MI_STR          "set-anc-lms-mi"
+#define SET_OFFLINE_LMS_MI_STR      "set-offline-lms-mu"
+#define SET_ANC_LMS_MI_STR          "set-anc-lms-mu"
 
 //#define HELP_CONTENT_STR            ""
 
