@@ -13,8 +13,11 @@
 #define DMA_MEM2MEM_SUCCESS     0x00
 #define DMA_MEM2MEM_BUSY        -0x01
 
+#define DMA_MEM2MEM_READY       0x01
+
 struct dma_mem2mem_struct
 {
+    uint32_t        ready;
     DMA_TypeDef*    DMAx;
     uint32_t        Stream;
     void    (*callback)(struct dma_mem2mem_struct*);
@@ -35,6 +38,8 @@ int dma_mem2mem_configure(
     void*           source,
     uint32_t        length
 );
+
+int dma_mem2mem_isReady(dma_mem2mem_t* self);
 
 int dma_mem2mem_start(dma_mem2mem_t* self);
 

@@ -62,6 +62,11 @@ int dma_mem2mem_configure(
     return DMA_MEM2MEM_SUCCESS;
 }
 
+int dma_mem2mem_isReady(dma_mem2mem_t* self)
+{
+
+}
+
 int dma_mem2mem_start(dma_mem2mem_t* self)
 {
     if (LL_DMA_IsEnabledStream(self->DMAx, self->Stream))

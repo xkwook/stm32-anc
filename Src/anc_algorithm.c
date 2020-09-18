@@ -19,7 +19,7 @@ void anc_algorithm_init(anc_algorithm_t* self)
 
 }
 
-inline void anc_algorithm_enable(anc_algorithm_t* self)
+void anc_algorithm_enable(anc_algorithm_t* self)
 {
     if (self->enable == DISABLED)
     {
@@ -27,7 +27,7 @@ inline void anc_algorithm_enable(anc_algorithm_t* self)
     }
 }
 
-inline void anc_algorithm_disable(anc_algorithm_t* self)
+void anc_algorithm_disable(anc_algorithm_t* self)
 {
     self->enable = DISABLED;
 }
