@@ -39,9 +39,9 @@ inline void iir3_circular_pushData(
     q15_t               dataIn
 );
 
-inline q15_t* iir3_circular_getOldDataInPtr(iir3_circular_t* self);
+inline q15_t* iir3_circular_getDataInPtr(iir3_circular_t* self);
 
-inline q15_t* iir3_circular_getOldDataOutPtr(iir3_circular_t* self);
+inline q15_t* iir3_circular_getDataOutPtr(iir3_circular_t* self);
 
 inline q15_t iir3_circular_calculate(iir3_circular_t* self);
 

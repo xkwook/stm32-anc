@@ -33,14 +33,14 @@ inline void fir_circular_interp_pushData(
     self->dataIn = dataIn;
 }
 
-inline q15_t* fir_circular_interp_getOldDataInPtr(
+inline q15_t* fir_circular_interp_getDataInPtr(
     fir_circular_interp_t*  self
 )
 {
     return &(self->dataIn);
 }
 
-inline q15_t fir_circular_interp_calculate(
+inline void fir_circular_interp_calculate(
     fir_circular_interp_t*  self,
     q15_t*                  dataOut_p
 )
