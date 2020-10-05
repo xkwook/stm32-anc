@@ -23,9 +23,9 @@
 
 /* Private data */
 
-extern const anc_processing_inShiftTable[4];
+extern const uint32_t anc_processing_inShiftTable[4];
 
-extern const anc_processing_outShiftTable[4];
+extern const uint32_t anc_processing_outShiftTable[4];
 
 typedef struct __attribute__((packed))
 {
@@ -134,6 +134,8 @@ static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
     iir3_circular_pushData(&self->iir3_err, samples.errSample);
     samples.refSample = iir3_circular_calculate(&self->iir3_ref);
     samples.errSample = iir3_circular_calculate(&self->iir3_err);
+
+    return samples;
 }
 
 static inline void anc_processing_postprocessing(

@@ -11,7 +11,7 @@
 
 /* Private data */
 
-const anc_processing_inShiftTable[4] =
+const uint32_t anc_processing_inShiftTable[4] =
 {
     1u,
     2u,
@@ -19,7 +19,7 @@ const anc_processing_inShiftTable[4] =
     4u
 };
 
-const anc_processing_outShiftTable[4] =
+const uint32_t anc_processing_outShiftTable[4] =
 {
     4u,
     3u,
@@ -55,7 +55,7 @@ void anc_processing_init(
 
     /* Configure uart transfer */
     uart_transmitter_setMsg(h_uart_transmitter,
-        logData_p, sizeof(*logData_p));
+        (uint8_t*) logData_p, sizeof(*logData_p));
 }
 
 /* Private methods definition */

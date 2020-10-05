@@ -12,7 +12,7 @@
 #define ALGORITHM1      1u
 
 
-void algorithmInit(
+static void algorithmInit(
     anc_offline_identification_t*   self0,
     anc_offline_identification_t*   self1,
     dma_mem2mem_t*                  h_dma_mem2mem,
@@ -38,7 +38,7 @@ void anc_offline_identification_init(
 
 /* Private methods definition */
 
-void algorithmInit(
+static void algorithmInit(
     anc_offline_identification_t*   self0,
     anc_offline_identification_t*   self1,
     dma_mem2mem_t*                  h_dma_mem2mem,
@@ -51,7 +51,7 @@ void algorithmInit(
     self0->counter              = algorithmNum;
     self0->oldOut_p             = &(self1->out);
 
-    self0->excitationSignal_p   = anc_lms_excitationSignal;
+    self0->excitationSignal_p   = (q15_t*) anc_lms_excitationSignal;
 
     /* Configure dma mem2mem transfer */
     dma_mem2mem_configure(h_dma_mem2mem,

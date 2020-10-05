@@ -9,7 +9,7 @@
 
 /* Private methods declaration */
 
-void algorithmInit(
+static void algorithmInit(
     anc_algorithm_t*    self0,
     anc_algorithm_t*    self1,
     dma_mem2mem_t*      h_dma_mem2mem
@@ -43,7 +43,7 @@ void anc_algorithm_disable(anc_algorithm_t* self)
 
 /* Private methods definition */
 
-void algorithmInit(
+static void algorithmInit(
     anc_algorithm_t*    self0,
     anc_algorithm_t*    self1,
     dma_mem2mem_t*      h_dma_mem2mem
