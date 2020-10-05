@@ -21,12 +21,18 @@
 #define ANC_PROCESSING_CHUNK_SIZE    4
 #define ANC_PROCESSING_OFFSET        2048
 
-typedef struct
+/* Private data */
+
+extern const anc_processing_inShiftTable[4];
+
+extern const anc_processing_outShiftTable[4];
+
+typedef struct __attribute__((packed))
 {
     q15_t   refSample;
     q15_t   errSample;
     q15_t   outSample;
-} __attribute_((packed)) anc_processing_logData_t;
+} anc_processing_logData_t;
 
 struct anc_processing_preprocessing_data_struct
 {
@@ -56,10 +62,11 @@ typedef struct anc_processing_struct anc_processing_t;
 /* Public methods declaration */
 
 void anc_processing_init(
-    anc_processing_t*   self0,
-    anc_processing_t*   self1,
-    agc_t*              h_agc,
-    uart_transmitter_t* h_uart_transmitter
+    anc_processing_t*           self0,
+    anc_processing_t*           self1,
+    agc_t*                      h_agc,
+    uart_transmitter_t*         h_uart_transmitter,
+    anc_processing_logData_t*   logData_p
 );
 
 __attribute__((weak)) void anc_processing_onErrorCallback(
@@ -95,7 +102,7 @@ static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
     errIn_p = self->errIn;
 
     /* Convert ref data to q15 buffer */
-    refShift = m_inShiftTable[(int) refGain];
+    refShift = anc_processing_inShiftTable[(int) refGain];
 
     *refIn_p++ = (*refMicBfr++ - ANC_PROCESSING_OFFSET)
                 << refShift;
@@ -107,7 +114,7 @@ static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
                 << refShift;
 
     /* Convert err data to q15 buffer */
-    errShift = m_inShiftTable[(int) errGain];
+    errShift = anc_processing_inShiftTable[(int) errGain];
 
     *errIn_p++ = (*errMicBfr++ - ANC_PROCESSING_OFFSET)
                 << errShift;
@@ -119,23 +126,25 @@ static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
                 << errShift;
 
     /* FIR and decimate */
-    samples.refSample = fir_circular_decimate_calculate(self->h_fir_decimate_ref);
-    samples.errSample = fir_circular_decimate_calculate(self->h_fir_decimate_err);
+    samples.refSample = fir_circular_decimate_calculate(&self->fir_decimate_ref);
+    samples.errSample = fir_circular_decimate_calculate(&self->fir_decimate_err);
 
     /* Perform IIR3 on input data */
-    iir3_circular_pushData(self->h_iir3_ref, samples.refSample);
-    iir3_circular_pushData(self->h_iir3_err, samples.errSample);
-    samples.refSample = iir3_circular_calculate(self->h_iir3_ref);
-    samples.errSample = iir3_circular_calculate(self->h_iir3_err);
+    iir3_circular_pushData(&self->iir3_ref, samples.refSample);
+    iir3_circular_pushData(&self->iir3_err, samples.errSample);
+    samples.refSample = iir3_circular_calculate(&self->iir3_ref);
+    samples.errSample = iir3_circular_calculate(&self->iir3_err);
 }
 
 static inline void anc_processing_postprocessing(
-    anc_processing_t*   self,
-    q15_t               outSample,
-    uint16_t*           outDacBfr
+    anc_processing_t*                   self,
+    anc_processing_preprocessing_data_t inSamples,
+    q15_t                               outSample,
+    uint16_t*                           outDacBfr
 )
 {
-    q15_t       out_p[ANC_PROCESSING_CHUNK_SIZE];
+    q15_t       out[ANC_PROCESSING_CHUNK_SIZE];
+    q15_t*      out_p = out;
     anc_gain_t  outGain;
     uint32_t    outShift;
 
@@ -143,11 +152,11 @@ static inline void anc_processing_postprocessing(
     outGain = anc_gain_outGet();
 
     /* Interpolate u with FIR */
-    fir_circular_interp_pushData(self->h_fir_interp, outSample);
-    fir_circular_interp_calculate(self->h_fir_interp, out_p);
+    fir_circular_interp_pushData(&self->fir_interp, outSample);
+    fir_circular_interp_calculate(&self->fir_interp, out_p);
 
     /* Convert from q15 to 12-bit DAC format with saturation */
-    outShift = m_outShiftTable[(int) outGain];
+    outShift = anc_processing_outShiftTable[(int) outGain];
 
     *outDacBfr++ = (uint16_t) (
         __SSAT((*out_p++ >> outShift), 12)
@@ -168,8 +177,8 @@ static inline void anc_processing_postprocessing(
     }
     else
     {
-        self->logData_p->refSample = refSample;
-        self->logData_p->errSample = errSample;
+        self->logData_p->refSample = inSamples.refSample;
+        self->logData_p->errSample = inSamples.errSample;
         self->logData_p->outSample = outSample;
 
         uart_transmitter_start(self->h_uart_transmitter);

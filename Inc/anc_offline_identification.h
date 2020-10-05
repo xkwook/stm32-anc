@@ -21,7 +21,7 @@
 #define ANC_OFFLINE_IDENTIFICATION_HALF     0u
 #define ANC_OFFLINE_IDENTIFICATION_FULL     1u
 
-typedef struct __attribute__((packed, aligned(sizeof(uint32_t)))))
+typedef struct __attribute__(( packed, aligned(sizeof(uint32_t)) ))
 {
     q15_t   Sn_state    [ANC_SN_FILTER_LENGTH];
 } anc_offline_identification_states_t;
@@ -90,7 +90,7 @@ static inline q15_t anc_offline_identification_calculate(
         error = (q31_t) samples.errSample - (q31_t) out;
 
         /* Update Sn using LNLMS algorithm */
-        lnlms_circular_update(self->lnlms, error);
+        lnlms_circular_update(&self->lnlms, error);
 
         /* Run DMA mem2mem for shifting states */
         dma_mem2mem_start(self->h_dma_mem2mem);
@@ -103,7 +103,7 @@ static inline q15_t anc_offline_identification_calculate(
         }
 
         /* Generate new excitation output */
-        out = self->excitationSignal[counter % ANC_LMS_EXCITATION_SIGNAL_LENGTH];
+        out = self->excitationSignal_p[counter % ANC_LMS_EXCITATION_SIGNAL_LENGTH];
 
         /* Save out signal */
         self->out = out;

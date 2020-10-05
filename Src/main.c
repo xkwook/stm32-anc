@@ -29,13 +29,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdio.h>
 #include "anc_acquisition.h"
 #include "uart_receiver.h"
 #include "uart_transmitter.h"
+#include "dma_mem2mem.h"
 #include "swo_logger.h"
-#include "identification.h"
-#include "anc_parameters.h"
 #include "anc_application.h"
 /* USER CODE END Includes */
 
@@ -59,8 +57,8 @@
 anc_acquisition_t   AncAcquisition;
 uart_receiver_t     UartReceiver;
 uart_transmitter_t  UartTransmitter;
-identification_t    Identification;
-anc_application_t   AncApplication;
+dma_mem2mem_t       DmaMem2Mem0;
+dma_mem2mem_t       DmaMem2Mem1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -121,14 +119,17 @@ int main(void)
   anc_acquisition_init(&AncAcquisition);
   uart_receiver_init(&UartReceiver);
   uart_transmitter_init(&UartTransmitter);
-  identification_init(&Identification,
-    &AncAcquisition, anc_excitationSignal);
-  anc_application_init(&AncApplication,
-    &AncAcquisition, &UartReceiver,
-    &UartTransmitter, &Identification);
+  dma_mem2mem_init(&DmaMem2Mem0,
+    DMA2, LL_DMA_STREAM_1);
+  dma_mem2mem_init(&DmaMem2Mem0,
+    DMA2, LL_DMA_STREAM_3);
+
+  anc_application_init(&AncAcquisition,
+    &UartReceiver, &UartTransmitter,
+    &DmaMem2Mem0, &DmaMem2Mem1);
 
   /* Start main application */
-  anc_application_start(&AncApplication);
+  anc_application_start();
   /* USER CODE END 2 */
 
   /* Infinite loop */

@@ -8,13 +8,10 @@
 #ifndef ANC_APPLICATION_H_
 #define ANC_APPLICATION_H_
 
-#include <stddef.h>
-
 #include "anc_acquisition.h"
-#include "identification.h"
 #include "uart_receiver.h"
 #include "uart_transmitter.h"
-//#include "agc.h"  /* now excluded */
+#include "dma_mem2mem.h"
 
 typedef enum
 {
@@ -24,36 +21,18 @@ typedef enum
     ANC_APPLICATION_OFFLINE_IDENTIFICATION
 } anc_application_state_t;
 
-typedef enum
-{
-    ANC_APPLICATION_IDENTIFICATION_EMPTY,
-    ANC_APPLICATION_IDENTIFICATION_READY
-} anc_application_identificationState_t;
-
-struct anc_application_struct
-{
-    anc_application_state_t state;
-    anc_acquisition_t*      h_ancAcquisition;
-    uart_receiver_t*        h_uartReceiver;
-    uart_transmitter_t*     h_uartTransmitter;
-    identification_t*       h_identification;
-    anc_application_identificationState_t   identificationState;
-};
-
-typedef struct anc_application_struct anc_application_t;
-
 /* Public methods declaration */
 
 void anc_application_init(
-    anc_application_t*  self,
     anc_acquisition_t*  h_ancAcquisition,
     uart_receiver_t*    h_uartReceiver,
     uart_transmitter_t* h_uartTransmitter,
-    identification_t*   h_identification
+    dma_mem2mem_t*      h_dmaMem2mem0,
+    dma_mem2mem_t*      h_dmaMem2mem1
 );
 
-void anc_application_start(anc_application_t* self);
+void anc_application_start(void);
 
-anc_application_state_t anc_application_getState(anc_application_t* self);
+anc_application_state_t anc_application_getState(void);
 
 #endif /* ANC_APPLICATION_H_ */

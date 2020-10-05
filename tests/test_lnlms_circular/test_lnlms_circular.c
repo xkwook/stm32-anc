@@ -128,7 +128,7 @@ void filtersInit(void)
         ANC_FIR_FILTER_ORDER + 1
     );
 
-    lnlms_circular_initWeights(&lnlms[0]);
+    lnlms_circular_initCoeffs(wn_coeffs, ANC_FIR_FILTER_ORDER + 1);
 }
 
 void coeffsError(void)

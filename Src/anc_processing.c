@@ -11,7 +11,7 @@
 
 /* Private data */
 
-static const m_inShiftTable[4] =
+const anc_processing_inShiftTable[4] =
 {
     1u,
     2u,
@@ -19,7 +19,7 @@ static const m_inShiftTable[4] =
     4u
 };
 
-static const m_outShiftTable[4] =
+const anc_processing_outShiftTable[4] =
 {
     4u,
     3u,
@@ -29,38 +29,50 @@ static const m_outShiftTable[4] =
 
 /* Private methods declaration */
 
-void InitCircularFilters(
-    anc_processing_t*   self0,
-    anc_processing_t*   self1
+void InitProcessing(
+    anc_processing_t*           self0,
+    anc_processing_t*           self1,
+    agc_t*                      h_agc,
+    uart_transmitter_t*         h_uart_transmitter,
+    anc_processing_logData_t*   logData_p
 );
 
 /* Pulic metods definition */
 
 void anc_processing_init(
-    anc_processing_t*   self0,
-    anc_processing_t*   self1,
-    agc_t*              h_agc,
-    uart_transmitter_t* h_uart_transmitter
+    anc_processing_t*           self0,
+    anc_processing_t*           self1,
+    agc_t*                      h_agc,
+    uart_transmitter_t*         h_uart_transmitter,
+    anc_processing_logData_t*   logData_p
+)
+{
+    /* Init circular filters for both stages */
+    InitProcessing(self0, self1,
+        h_agc, h_uart_transmitter, logData_p);
+    InitProcessing(self1, self0,
+        h_agc, h_uart_transmitter, logData_p);
+
+    /* Configure uart transfer */
+    uart_transmitter_setMsg(h_uart_transmitter,
+        logData_p, sizeof(*logData_p));
+}
+
+/* Private methods definition */
+
+void InitProcessing(
+    anc_processing_t*           self0,
+    anc_processing_t*           self1,
+    agc_t*                      h_agc,
+    uart_transmitter_t*         h_uart_transmitter,
+    anc_processing_logData_t*   logData_p
 )
 {
     /* Init handle pointers */
     self0->h_agc                = h_agc;
     self0->h_uart_transmitter   = h_uart_transmitter;
-    self1->h_agc                = h_agc;
-    self1->h_uart_transmitter   = h_uart_transmitter;
+    self0->logData_p            = logData_p;
 
-    /* Init circular filters for both stages */
-    InitCircularFilters(self0, self1);
-    InitCircularFilters(self1, self0);
-}
-
-/* Private methods definition */
-
-void InitCircularFilters(
-    anc_processing_t*   self0,
-    anc_processing_t*   self1
-)
-{
     fir_circular_decimate_init(
         &(self0->fir_decimate_ref),
         (q15_t*) anc_fir_decim_coeffs,

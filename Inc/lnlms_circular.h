@@ -36,8 +36,9 @@ void lnlms_circular_init(
     uint32_t            length
 );
 
-void lnlms_circular_initWeights(
-    lnlms_circular_t*   self
+void lnlms_circular_initCoeffs(
+    q15_t*              coeffs_p,
+    uint32_t            length
 );
 
 static inline void lnlms_circular_update(

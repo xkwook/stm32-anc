@@ -7,99 +7,387 @@
 
 #include "anc_application.h"
 
+#include "anc_parameters.h"
+#include "anc_math.h"
 #include "anc_cmd.h"
 #include "anc_gain.h"
-
+#include "identification.h"
+#include "agc.h"
+#include "anc_processing.h"
+#include "anc_algorithm.h"
+#include "anc_offline_identification.h"
 #include "swo_logger.h"
 
-/* Rubbish functions BEGIN */
-
-#include "anc_parameters.h"
-#include "datalogger.h"
-#include "math.h"
-#include "iir.h"
-
-#define ANC_ACQUISITION_CHUNK_SIZE    4
-
-iir_t IirRefMic;
-iir_t IirErrMic;
-
-DataLogger_t        DataLogger;
-
-anc_application_t*  m_h_ancApplication;
-
-static inline void rubbish_init(anc_application_t* self)
+typedef enum
 {
-  iir_init(&IirRefMic, anc_iir_b_coeffs, anc_iir_a_coeffs);
-  iir_init(&IirErrMic, anc_iir_b_coeffs, anc_iir_a_coeffs);
+    ANC_APPLICATION_IDENTIFICATION_EMPTY,
+    ANC_APPLICATION_IDENTIFICATION_READY
+} anc_application_identificationState_t;
 
-  m_h_ancApplication = self;
+struct anc_application_struct
+{
+    /* Object handlers */
+    anc_acquisition_t*  h_ancAcquisition;
+    uart_receiver_t*    h_uartReceiver;
+    uart_transmitter_t* h_uartTransmitter;
+    dma_mem2mem_t*      h_dmaMem2mem0;
+    dma_mem2mem_t*      h_dmaMem2mem1;
+    /* Private objects */
+    identification_t                identification;
+    agc_t                           agc;
+    anc_processing_logData_t        ancProcessingLogData;
+    anc_processing_t                ancProcessing[2];
+    anc_algorithm_t                 ancAlgorithm[2];
+    anc_offline_identification_t    ancOfflineIdentification[2];
+    /* Private variables */
+    anc_application_state_t                 state;
+    anc_application_identificationState_t   identificationState;
+};
+
+typedef struct anc_application_struct anc_application_t;
+
+static anc_application_t m_app;
+
+/* Private methods declaration */
+
+static inline void IdleStateHandle(anc_application_t* self);
+static inline void AcquisitionStateHandle(anc_application_t* self);
+static inline void IdentificationStateHandle(anc_application_t* self);
+static inline void OfflineIdentificationStateHandle(anc_application_t* self);
+
+void SetGains(uint8_t* cmdData);
+
+/* Callbacks for anc_acquisition module */
+
+void acquisition_bfr0_callback(
+    uint16_t* refMicBfr,
+    uint16_t* errMicBfr,
+    uint16_t* outDacBfr
+);
+
+void acquisition_bfr1_callback(
+    uint16_t* refMicBfr,
+    uint16_t* errMicBfr,
+    uint16_t* outDacBfr
+);
+
+void offline_identification_bfr0_callback(
+    uint16_t* refMicBfr,
+    uint16_t* errMicBfr,
+    uint16_t* outDacBfr
+);
+
+void offline_identification_bfr1_callback(
+    uint16_t* refMicBfr,
+    uint16_t* errMicBfr,
+    uint16_t* outDacBfr
+);
+
+/* Public methods definition */
+
+void anc_application_init(
+    anc_acquisition_t*  h_ancAcquisition,
+    uart_receiver_t*    h_uartReceiver,
+    uart_transmitter_t* h_uartTransmitter,
+    dma_mem2mem_t*      h_dmaMem2mem0,
+    dma_mem2mem_t*      h_dmaMem2mem1
+)
+{
+    m_app.h_ancAcquisition  = h_ancAcquisition;
+    m_app.h_uartReceiver    = h_uartReceiver;
+    m_app.h_uartTransmitter = h_uartTransmitter;
+    m_app.h_dmaMem2mem0     = h_dmaMem2mem0;
+    m_app.h_dmaMem2mem1     = h_dmaMem2mem1;
+
+    /* Initialize to IDLE (stopped) state */
+    m_app.state = ANC_APPLICATION_IDLE;
+    m_app.identificationState = ANC_APPLICATION_IDENTIFICATION_EMPTY;
+
+    /* Set all gains to default */
+    anc_gain_refSet(ANC_GAIN_2);
+    anc_gain_errSet(ANC_GAIN_2);
+    anc_gain_outSet(ANC_GAIN_2);
+
+    /* Init objects */
+    identification_init(
+        &m_app.identification,
+        m_app.h_ancAcquisition,
+        anc_excitationSignal
+    );
+
+    /* Init weigths for LNLMS algorithms */
+    lnlms_circular_initCoeffs(
+        anc_Sn_coeffs,
+        ANC_SN_FILTER_LENGTH
+    );
+
+    lnlms_circular_initCoeffs(
+        anc_Wn_coeffs,
+        ANC_WN_FILTER_LENGTH
+    );
 }
 
-static inline void average_and_send(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
+void anc_application_start(void)
 {
-  static int32_t triangleCnt = 0;
-  static int32_t triangleDir = 250;
+    SWO_LOG("ANC application started!");
+    uart_receiver_start(m_app.h_uartReceiver);
 
-  float* refMicFiltered;
-  float* errMicFiltered;
+    /* Infinite loop */
+    for (;;)
+    {
+        switch (m_app.state)
+        {
+        case ANC_APPLICATION_IDLE:
+            IdleStateHandle(&m_app);
+            break;
 
-  refMicFiltered = iir_perform(&IirRefMic, (int16_t*)refMicBfr);
-  errMicFiltered = iir_perform(&IirErrMic, (int16_t*)errMicBfr);
+        case ANC_APPLICATION_ACQUISITION:
+            AcquisitionStateHandle(&m_app);
+            break;
 
-  float refMicMean = 0.0;
-  float errMicMean = 0.0;
-  int32_t outDacMean = 0;
-  for (uint32_t i = 0; i < ANC_ACQUISITION_CHUNK_SIZE; i++)
-  {
-    //refMicMean += refMicBfr[i];
-    refMicMean += refMicFiltered[i];
-    errMicMean += errMicFiltered[i];
-    outDacMean += outDacBfr[i];
-  }
-  refMicMean /= ANC_ACQUISITION_CHUNK_SIZE;
-  errMicMean /= ANC_ACQUISITION_CHUNK_SIZE;
-  outDacMean /= ANC_ACQUISITION_CHUNK_SIZE;
-  outDacMean -= ANC_DAC_OFFSET;
+        case ANC_APPLICATION_IDENTIFICATION:
+            IdentificationStateHandle(&m_app);
+            break;
 
-  /* Generate new DAC samples */
-  /* Triangle of tone 500 Hz */
-  for (uint32_t i = 0; i < ANC_ACQUISITION_CHUNK_SIZE; i++)
-  {
-    outDacBfr[i] = triangleCnt + ANC_DAC_OFFSET;
-    triangleCnt += triangleDir;
-  }
-  if (triangleCnt == 2000 || triangleCnt == -2000)
-  {
-    triangleDir *= -1;
-  }
+        case ANC_APPLICATION_OFFLINE_IDENTIFICATION:
+            OfflineIdentificationStateHandle(&m_app);
+            break;
 
-  DataLogger.bfr.sample[0][0] = (int8_t)(refMicMean / 16.0);
-  DataLogger.bfr.sample[1][0] = (int8_t)(errMicMean / 16.0);
-  DataLogger.bfr.sample[2][0] = (int8_t)(outDacMean / 16);
-
-  uart_transmitter_setMsg(m_h_ancApplication->h_uartTransmitter,
-    (uint8_t*)&DataLogger.bfr, sizeof(DataLogger.bfr));
-  uart_transmitter_send(m_h_ancApplication->h_uartTransmitter);
+        default:
+            break;
+        }
+        /* Process logs in the mean time */
+        SWO_LOG_PROCESS();
+    }
 }
 
-void anc_acquisition_bfr0_callback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
+anc_application_state_t anc_application_getState(void)
 {
-  average_and_send(refMicBfr, errMicBfr, outDacBfr);
+    return m_app.state;
 }
 
-void anc_acquisition_bfr1_callback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
+/* Private methods definition */
+
+static inline void IdleStateHandle(anc_application_t* self)
 {
-  static uint32_t cnt = 0;
-  if (cnt % 1000 == 0)
-  {
-    LL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-  }
-  cnt++;
-  average_and_send(refMicBfr, errMicBfr, outDacBfr);
+    char* rcvMsg_p;
+    uint32_t* bfr;
+    uint32_t stabilizingCycles = 16;
+    uint32_t sumCycles = 128;
+    uint32_t mDelay = 10000;
+    rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
+    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
+    {
+        uint8_t* cmdData;
+        anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
+        switch (cmd)
+        {
+        case ANC_CMD_HELP:
+            break;
+        case ANC_CMD_START:
+            /* Configure acquisition */
+            anc_acquisition_configure(
+                self->h_ancAcquisition,
+                ANC_CHUNK_SIZE,
+                acquisition_bfr0_callback,
+                acquisition_bfr1_callback
+            );
+
+            /* Init algorithm objects */
+            agc_init(&self->agc);
+            anc_processing_init(
+                &self->ancProcessing[0],
+                &self->ancProcessing[1],
+                &self->agc,
+                self->h_uartTransmitter,
+                &self->ancProcessingLogData
+            );
+            anc_algorithm_init(
+                &self->ancAlgorithm[0],
+                &self->ancAlgorithm[1],
+                self->h_dmaMem2mem0,
+                self->h_dmaMem2mem1
+            );
+
+            anc_acquisition_start(self->h_ancAcquisition);
+            self->state = ANC_APPLICATION_ACQUISITION;
+            break;
+        case ANC_CMD_STOP:
+            SWO_LOG("Already stopped!");
+            break;
+        case ANC_CMD_SET_GAINS:
+            SetGains(cmdData);
+            break;
+
+        /* Only in Idle state commands */
+        case ANC_CMD_IDENTIFICATION:
+            identification_configure(&self->identification,
+                stabilizingCycles, sumCycles);
+            LL_mDelay(mDelay);
+            identification_start(&self->identification);
+            self->state = ANC_APPLICATION_IDENTIFICATION;
+            break;
+        case ANC_CMD_IDENTIFICATION_GET_REF:
+            bfr = self->identification.refMicSum;
+            if (self->identificationState == ANC_APPLICATION_IDENTIFICATION_READY)
+            {
+                uart_transmitter_setMsg(self->h_uartTransmitter,
+                    (uint8_t*)bfr, IDENTIFICATION_BFR_LENGTH * sizeof(bfr[0]));
+                uart_transmitter_start(self->h_uartTransmitter);
+            }
+            break;
+        case ANC_CMD_IDENTIFICATION_GET_ERR:
+            bfr = self->identification.errMicSum;
+            if (self->identificationState == ANC_APPLICATION_IDENTIFICATION_READY)
+            {
+                uart_transmitter_setMsg(self->h_uartTransmitter,
+                    (uint8_t*)bfr, IDENTIFICATION_BFR_LENGTH * sizeof(bfr[0]));
+                uart_transmitter_start(self->h_uartTransmitter);
+            }
+            break;
+        case ANC_CMD_OFFLINE_IDENTIFICATION:
+            /* Configure acquisition */
+            anc_acquisition_configure(
+                self->h_ancAcquisition,
+                ANC_CHUNK_SIZE,
+                offline_identification_bfr0_callback,
+                offline_identification_bfr1_callback
+            );
+
+            /* Init algorithm objects */
+            agc_init(&self->agc);
+            anc_processing_init(
+                &self->ancProcessing[0],
+                &self->ancProcessing[1],
+                &self->agc,
+                self->h_uartTransmitter,
+                &self->ancProcessingLogData
+            );
+            anc_offline_identification_init(
+                &self->ancOfflineIdentification[0],
+                &self->ancOfflineIdentification[1],
+                self->h_dmaMem2mem0,
+                self->h_dmaMem2mem1,
+                ANC_OFFLINE_IDENTIFICATION_CYCLES
+            );
+
+            LL_mDelay(mDelay);
+            anc_acquisition_start(self->h_ancAcquisition);
+            self->state = ANC_APPLICATION_ACQUISITION;
+            break;
+        case ANC_CMD_SET_OFFLINE_LMS_MI:
+            break;
+        case ANC_CMD_SET_ANC_LMS_MI:
+            break;
+
+        default:
+            SWO_LOG("Unsupported command.");
+            break;
+        }
+        SWO_LOG("%s", rcvMsg_p);
+        uart_receiver_freeMsg(self->h_uartReceiver);
+    }
 }
 
-void SetGains(anc_application_t* self, uint8_t* cmdData)
+static inline void AcquisitionStateHandle(anc_application_t* self)
+{
+    char* rcvMsg_p;
+    rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
+    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
+    {
+        uint8_t* cmdData;
+        anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
+        switch (cmd)
+        {
+        case ANC_CMD_START:
+            SWO_LOG("Already started!");
+            break;
+        case ANC_CMD_STOP:
+            anc_acquisition_stop(self->h_ancAcquisition);
+            self->state = ANC_APPLICATION_IDLE;
+            break;
+        case ANC_CMD_ANC_ON:
+            anc_algorithm_enable(&m_app.ancAlgorithm[0]);
+            anc_algorithm_enable(&m_app.ancAlgorithm[1]);
+            break;
+        case ANC_CMD_ANC_OFF:
+            anc_algorithm_disable(&m_app.ancAlgorithm[0]);
+            anc_algorithm_disable(&m_app.ancAlgorithm[1]);
+            break;
+        case ANC_CMD_AGC_ON:
+            agc_enable(&m_app.agc);
+            break;
+        case ANC_CMD_AGC_OFF:
+            agc_disable(&m_app.agc);
+            break;
+        case ANC_CMD_SET_GAINS:
+            SetGains(cmdData);
+            break;
+
+        default:
+            SWO_LOG("Unsupported command.");
+            break;
+        }
+        SWO_LOG("%s", rcvMsg_p);
+        uart_receiver_freeMsg(self->h_uartReceiver);
+    }
+
+}
+
+static inline void IdentificationStateHandle(anc_application_t* self)
+{
+    char* rcvMsg_p;
+    rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
+    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
+    {
+        uint8_t* cmdData;
+        anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
+        switch (cmd)
+        {
+        case ANC_CMD_STOP:
+            anc_acquisition_stop(self->h_ancAcquisition);
+            self->state = ANC_APPLICATION_IDLE;
+            break;
+
+        default:
+            SWO_LOG("Unsupported command.");
+            break;
+        }
+        SWO_LOG("%s", rcvMsg_p);
+        uart_receiver_freeMsg(self->h_uartReceiver);
+    }
+    if (identification_isDone(&self->identification))
+    {
+        self->identificationState = ANC_APPLICATION_IDENTIFICATION_READY;
+        self->state = ANC_APPLICATION_IDLE;
+    }
+}
+
+static inline void OfflineIdentificationStateHandle(anc_application_t* self)
+{
+    char* rcvMsg_p;
+    rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
+    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
+    {
+        uint8_t* cmdData;
+        anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
+        switch (cmd)
+        {
+        case ANC_CMD_STOP:
+            anc_acquisition_stop(self->h_ancAcquisition);
+            self->state = ANC_APPLICATION_IDLE;
+            break;
+
+        default:
+            SWO_LOG("Unsupported command.");
+            break;
+        }
+        SWO_LOG("%s", rcvMsg_p);
+        uart_receiver_freeMsg(self->h_uartReceiver);
+    }
+}
+
+void SetGains(uint8_t* cmdData)
 {
     int32_t refGain = ((int32_t*)cmdData)[0];
     int32_t errGain = ((int32_t*)cmdData)[1];
@@ -160,253 +448,122 @@ void SetGains(anc_application_t* self, uint8_t* cmdData)
     }
 }
 
-/* Rubbish functions END */
+/* Callbacks for anc_acquisition module */
 
-
-/* Private methods declaration */
-
-static inline void IdleStateHandle(anc_application_t* self);
-static inline void AcquisitionStateHandle(anc_application_t* self);
-static inline void IdentificationStateHandle(anc_application_t* self);
-static inline void OfflineIdentificationStateHandle(anc_application_t* self);
-
-/* Public methods definition */
-
-void anc_application_init(
-    anc_application_t*  self,
-    anc_acquisition_t*  h_ancAcquisition,
-    uart_receiver_t*    h_uartReceiver,
-    uart_transmitter_t* h_uartTransmitter,
-    identification_t*   h_identification
+void acquisition_bfr0_callback(
+    uint16_t* refMicBfr,
+    uint16_t* errMicBfr,
+    uint16_t* outDacBfr
 )
 {
-    self->h_ancAcquisition  = h_ancAcquisition;
-    self->h_uartReceiver    = h_uartReceiver;
-    self->h_uartTransmitter = h_uartTransmitter;
-    self->h_identification  = h_identification;
+    anc_processing_preprocessing_data_t inputSamples;
+    q15_t out;
 
-    /* Initialize to IDLE (stopped) state */
-    self->state = ANC_APPLICATION_IDLE;
-    self->identificationState = ANC_APPLICATION_IDENTIFICATION_EMPTY;
+    inputSamples = anc_processing_preprocessing(
+        &m_app.ancProcessing[0],
+        refMicBfr,
+        errMicBfr,
+        outDacBfr
+    );
 
-    /* Set all gains to default */
-    anc_gain_refSet(ANC_GAIN_2);
-    anc_gain_errSet(ANC_GAIN_2);
-    anc_gain_outSet(ANC_GAIN_2);
+    out = anc_algorithm_calculate(
+        &m_app.ancAlgorithm[0],
+        inputSamples
+    );
 
-    rubbish_init(self);
+    anc_processing_postprocessing(
+        &m_app.ancProcessing[0],
+        inputSamples,
+        out,
+        outDacBfr
+    );
 }
 
-void anc_application_start(anc_application_t* self)
+void acquisition_bfr1_callback(
+    uint16_t* refMicBfr,
+    uint16_t* errMicBfr,
+    uint16_t* outDacBfr
+)
 {
-    SWO_LOG("ANC application started!");
-    uart_receiver_start(self->h_uartReceiver);
+    anc_processing_preprocessing_data_t inputSamples;
+    q15_t out;
 
-    /* Infinite loop */
-    for (;;)
-    {
-        switch (self->state)
-        {
-        case ANC_APPLICATION_IDLE:
-            IdleStateHandle(self);
-            break;
+    inputSamples = anc_processing_preprocessing(
+        &m_app.ancProcessing[1],
+        refMicBfr,
+        errMicBfr,
+        outDacBfr
+    );
 
-        case ANC_APPLICATION_ACQUISITION:
-            AcquisitionStateHandle(self);
-            break;
+    out = anc_algorithm_calculate(
+        &m_app.ancAlgorithm[1],
+        inputSamples
+    );
 
-        case ANC_APPLICATION_IDENTIFICATION:
-            IdentificationStateHandle(self);
-            break;
-
-        case ANC_APPLICATION_OFFLINE_IDENTIFICATION:
-            OfflineIdentificationStateHandle(self);
-            break;
-
-        default:
-            break;
-        }
-        /* Process logs in the mean time */
-        SWO_LOG_PROCESS();
-    }
+    anc_processing_postprocessing(
+        &m_app.ancProcessing[1],
+        inputSamples,
+        out,
+        outDacBfr
+    );
 }
 
-anc_application_state_t anc_application_getState(anc_application_t* self)
+void offline_identification_bfr0_callback(
+    uint16_t* refMicBfr,
+    uint16_t* errMicBfr,
+    uint16_t* outDacBfr
+)
 {
-    return self->state;
+    anc_processing_preprocessing_data_t inputSamples;
+    q15_t out;
+
+    inputSamples = anc_processing_preprocessing(
+        &m_app.ancProcessing[0],
+        refMicBfr,
+        errMicBfr,
+        outDacBfr
+    );
+
+    out = anc_offline_identification_calculate(
+        &m_app.ancOfflineIdentification[0],
+        inputSamples
+    );
+
+    anc_processing_postprocessing(
+        &m_app.ancProcessing[0],
+        inputSamples,
+        out,
+        outDacBfr
+    );
 }
 
-/* Private methods definition */
-
-static inline void IdleStateHandle(anc_application_t* self)
+void offline_identification_bfr1_callback(
+    uint16_t* refMicBfr,
+    uint16_t* errMicBfr,
+    uint16_t* outDacBfr
+)
 {
-    char* rcvMsg_p;
-    uint32_t* bfr;
-    uint32_t stabilizingCycles = 16;
-    uint32_t sumCycles = 128;
-    uint32_t mDelay = 10000;
-    rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
-    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
-    {
-        uint8_t* cmdData;
-        anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
-        switch (cmd)
-        {
-        case ANC_CMD_HELP:
-            break;
-        case ANC_CMD_START:
-            anc_acquisition_configure(self->h_ancAcquisition, ANC_ACQUISITION_CHUNK_SIZE,
-                anc_acquisition_bfr0_callback, anc_acquisition_bfr1_callback);
-            anc_acquisition_start(self->h_ancAcquisition);
-            self->state = ANC_APPLICATION_ACQUISITION;
-            break;
-        case ANC_CMD_STOP:
-            SWO_LOG("Already stopped!");
-            break;
-        case ANC_CMD_ANC_ON:
-            break;
-        case ANC_CMD_ANC_OFF:
-            break;
-        case ANC_CMD_AGC_ON:
-            break;
-        case ANC_CMD_AGC_OFF:
-            break;
-        case ANC_CMD_SET_GAINS:
-            SetGains(self, cmdData);
-            break;
+    anc_processing_preprocessing_data_t inputSamples;
+    q15_t out;
 
-        /* Only in Idle state commands */
-        case ANC_CMD_IDENTIFICATION:
-            identification_configure(self->h_identification,
-                stabilizingCycles, sumCycles);
-            LL_mDelay(mDelay);
-            identification_start(self->h_identification);
-            self->state = ANC_APPLICATION_IDENTIFICATION;
-            break;
-        case ANC_CMD_IDENTIFICATION_GET_REF:
-            bfr = self->h_identification->refMicSum;
-            if (self->identificationState == ANC_APPLICATION_IDENTIFICATION_READY)
-            {
-                uart_transmitter_setMsg(self->h_uartTransmitter,
-                    (uint8_t*)bfr, IDENTIFICATION_BFR_LENGTH * sizeof(bfr[0]));
-                uart_transmitter_send(self->h_uartTransmitter);
-            }
-            break;
-        case ANC_CMD_IDENTIFICATION_GET_ERR:
-            bfr = self->h_identification->errMicSum;
-            if (self->identificationState == ANC_APPLICATION_IDENTIFICATION_READY)
-            {
-                uart_transmitter_setMsg(self->h_uartTransmitter,
-                    (uint8_t*)bfr, IDENTIFICATION_BFR_LENGTH * sizeof(bfr[0]));
-                uart_transmitter_send(self->h_uartTransmitter);
-            }
-            break;
-        case ANC_CMD_OFFLINE_IDENTIFICATION:
-            break;
-        case ANC_CMD_SET_OFFLINE_LMS_MI:
-            break;
-        case ANC_CMD_SET_ANC_LMS_MI:
-            break;
+    inputSamples = anc_processing_preprocessing(
+        &m_app.ancProcessing[1],
+        refMicBfr,
+        errMicBfr,
+        outDacBfr
+    );
 
-        default:
-            SWO_LOG("Unsupported command.");
-            break;
-        }
-        SWO_LOG("%s", rcvMsg_p);
-        uart_receiver_freeMsg(self->h_uartReceiver);
-    }
-}
+    out = anc_offline_identification_calculate(
+        &m_app.ancOfflineIdentification[1],
+        inputSamples
+    );
 
-static inline void AcquisitionStateHandle(anc_application_t* self)
-{
-    char* rcvMsg_p;
-    rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
-    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
-    {
-        uint8_t* cmdData;
-        anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
-        switch (cmd)
-        {
-        case ANC_CMD_START:
-            SWO_LOG("Already started!");
-            break;
-        case ANC_CMD_STOP:
-            anc_acquisition_stop(self->h_ancAcquisition);
-            self->state = ANC_APPLICATION_IDLE;
-            break;
-        case ANC_CMD_ANC_ON:
-            break;
-        case ANC_CMD_ANC_OFF:
-            break;
-        case ANC_CMD_AGC_ON:
-            break;
-        case ANC_CMD_AGC_OFF:
-            break;
-        case ANC_CMD_SET_GAINS:
-            SetGains(self, cmdData);
-            break;
-
-        default:
-            SWO_LOG("Unsupported command.");
-            break;
-        }
-        SWO_LOG("%s", rcvMsg_p);
-        uart_receiver_freeMsg(self->h_uartReceiver);
-    }
-
-}
-
-static inline void IdentificationStateHandle(anc_application_t* self)
-{
-    char* rcvMsg_p;
-    rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
-    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
-    {
-        uint8_t* cmdData;
-        anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
-        switch (cmd)
-        {
-        case ANC_CMD_STOP:
-            anc_acquisition_stop(self->h_ancAcquisition);
-            self->state = ANC_APPLICATION_IDLE;
-            break;
-
-        default:
-            SWO_LOG("Unsupported command.");
-            break;
-        }
-        SWO_LOG("%s", rcvMsg_p);
-        uart_receiver_freeMsg(self->h_uartReceiver);
-    }
-    if (identification_isDone(self->h_identification))
-    {
-        self->identificationState = ANC_APPLICATION_IDENTIFICATION_READY;
-        self->state = ANC_APPLICATION_IDLE;
-    }
-}
-
-static inline void OfflineIdentificationStateHandle(anc_application_t* self)
-{
-    char* rcvMsg_p;
-    rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
-    if (rcvMsg_p != UART_RECEIVER_NO_MSG)
-    {
-        uint8_t* cmdData;
-        anc_cmd_t cmd = anc_cmd_decode(rcvMsg_p, &cmdData);
-        switch (cmd)
-        {
-        case ANC_CMD_STOP:
-            anc_acquisition_stop(self->h_ancAcquisition);
-            self->state = ANC_APPLICATION_IDLE;
-            break;
-
-        default:
-            SWO_LOG("Unsupported command.");
-            break;
-        }
-        SWO_LOG("%s", rcvMsg_p);
-        uart_receiver_freeMsg(self->h_uartReceiver);
-    }
+    anc_processing_postprocessing(
+        &m_app.ancProcessing[1],
+        inputSamples,
+        out,
+        outDacBfr
+    );
 }
 
 /* Private callbacks from other modules */

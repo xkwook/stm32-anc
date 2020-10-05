@@ -19,7 +19,7 @@
 #include "dma_mem2mem.h"
 
 
-typedef struct __attribute__((packed, aligned(sizeof(uint32_t)))))
+typedef struct __attribute__(( packed, aligned(sizeof(uint32_t)) ))
 {
     q15_t   Sn_state    [ANC_SN_FILTER_LENGTH];
     q15_t   SnOut_state [ANC_WN_FILTER_LENGTH];

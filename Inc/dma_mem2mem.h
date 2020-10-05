@@ -36,7 +36,11 @@ static inline void dma_mem2mem_ClearFlag_TC(dma_mem2mem_t* self);
 void dma_mem2mem_init(
     dma_mem2mem_t*  self,
     DMA_TypeDef*    DMAx,
-    uint32_t        Stream,
+    uint32_t        Stream
+);
+
+void dma_mem2mem_setCallback(
+    dma_mem2mem_t*  self,
     void    (*callback)(struct dma_mem2mem_struct*)
 );
 
@@ -76,7 +80,7 @@ static inline void dma_mem2mem_dmaIrqHandler(dma_mem2mem_t* self)
 static inline uint32_t dma_mem2mem_IsActiveFlag_TC(dma_mem2mem_t* self)
 {
     uint32_t retVal;
-    switch (self->stream)
+    switch (self->Stream)
     {
     case LL_DMA_STREAM_0:
         retVal = LL_DMA_IsActiveFlag_TC0(self->DMAx);
@@ -109,7 +113,7 @@ static inline uint32_t dma_mem2mem_IsActiveFlag_TC(dma_mem2mem_t* self)
 
 static inline void dma_mem2mem_ClearFlag_TC(dma_mem2mem_t* self)
 {
-    switch (self->stream)
+    switch (self->Stream)
     {
     case LL_DMA_STREAM_0:
         LL_DMA_ClearFlag_TC0(self->DMAx);

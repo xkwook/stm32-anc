@@ -10,6 +10,19 @@
 
 #include "anc_math.h"
 
+typedef enum
+{
+    DISABLED,
+    ENABLED
+} enable_t;
+
+/* Decimation factor/chunk size in algorithm */
+#define ANC_DECIMATION_RATIO                4
+#define ANC_CHUNK_SIZE                      ANC_DECIMATION_RATIO
+
+/* Offline identification cycles time - 60 s */
+#define ANC_OFFLINE_IDENTIFICATION_CYCLES   (2000u * 60)
+
 /* ANC NLMS offline identification parameters */
 #define ANC_OFFLINE_MU                      1.0f
 #define ANC_OFFLINE_ALPHA                   ((q15_t) ((1u << 15) - 1))

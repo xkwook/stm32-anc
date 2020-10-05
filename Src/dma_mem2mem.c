@@ -6,6 +6,7 @@
  */
 
 #include "dma_mem2mem.h"
+#include "stddef.h"
 
 /* Private methods declaration */
 
@@ -17,19 +18,26 @@ static inline void ClearFlag_TC(dma_mem2mem_t* self);
 void dma_mem2mem_init(
     dma_mem2mem_t*  self,
     DMA_TypeDef*    DMAx,
-    uint32_t        Stream,
-    void    (*callback)(struct dma_mem2mem_struct*)
+    uint32_t        Stream
 )
 {
     self->DMAx      = DMAx;
     self->Stream    = Stream;
-    self->callback  = callback;
+    self->callback  = NULL;
 
     /* Clear flag to make sure no interrupt will be generated */
     ClearFlag_TC(self);
 
     /* Enable Transfer Completed interrupt */
     LL_DMA_EnableIT_TC(self->DMAx, self->Stream);
+}
+
+void dma_mem2mem_setCallback(
+    dma_mem2mem_t*  self,
+    void    (*callback)(struct dma_mem2mem_struct*)
+)
+{
+    self->callback = callback;
 }
 
 int dma_mem2mem_configure(

@@ -55,9 +55,9 @@ void algorithmInit(
 
     /* Configure dma mem2mem transfer */
     dma_mem2mem_configure(h_dma_mem2mem,
-        &(self0->states[0]),
-        &(self0->states[2]),
-        (sizeof(self0->states) - 2 * sizeof(q15_t));
+        &(self0->states),
+        &(self0->states) + 2 * sizeof(q15_t),
+        (sizeof(self0->states) - 2 * sizeof(q15_t))
     );
 
     /* Init filter */

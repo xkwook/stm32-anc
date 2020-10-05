@@ -30,10 +30,11 @@ void lnlms_circular_init(
     self->energy    = 0;
 }
 
-void lnlms_circular_initWeights(
-    lnlms_circular_t*   self
+void lnlms_circular_initCoeffs(
+    q15_t*              coeffs_p,
+    uint32_t            length
 )
 {
     /* Init coeffs vector to zeros */
-    memset(self->coeffs_p, 0, self->length * sizeof(self->coeffs_p[0]));
+    memset(coeffs_p, 0, length * sizeof(coeffs_p[0]));
 }
