@@ -35,6 +35,7 @@ struct agc_struct
 
 typedef struct agc_struct agc_t;
 
+/* Private inline methods */
 
 /* Public methods declaration */
 
@@ -44,7 +45,9 @@ void agc_enable(agc_t* self);
 
 void agc_disable(agc_t* self);
 
-inline void agc_adapt(
+/* Inline methods */
+
+void agc_adapt(
     agc_t*      self,
     uint16_t*   refData_p,
     uint16_t*   errData_p,

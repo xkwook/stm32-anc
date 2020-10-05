@@ -11,12 +11,25 @@
 #define DISABLED        0
 #define ENABLED         1
 
+/* Private methods declaration */
+
+void algorithmInit(
+    anc_algorithm_t*    self0,
+    anc_algorithm_t*    self1,
+    dma_mem2mem_t*      h_dma_mem2mem
+);
 
 /* Public methods definition */
 
-void anc_algorithm_init(anc_algorithm_t* self)
+void anc_algorithm_init(
+    anc_algorithm_t*    self0,
+    anc_algorithm_t*    self1,
+    dma_mem2mem_t*      h_dma_mem2mem0,
+    dma_mem2mem_t*      h_dma_mem2mem1
+)
 {
-
+    algorithmInit(self0, self1, h_dma_mem2mem0);
+    algorithmInit(self1, self0, h_dma_mem2mem1);
 }
 
 void anc_algorithm_enable(anc_algorithm_t* self)
@@ -32,38 +45,56 @@ void anc_algorithm_disable(anc_algorithm_t* self)
     self->enable = DISABLED;
 }
 
-inline q15_t anc_algorithm_calculate(
-    anc_algorithm_t*                    self,
-    anc_processing_preprocessing_data_t samples
+/* Private methods definition */
+
+void algorithmInit(
+    anc_algorithm_t*    self0,
+    anc_algorithm_t*    self1,
+    dma_mem2mem_t*      h_dma_mem2mem
 )
 {
-    q15_t refSn;
-    q15_t result;
+    self0->h_dma_mem2mem = h_dma_mem2mem;
+    self0->enable        = DISABLED;
 
-    if (self->enable == ENABLED)
-    {
-        /* TODO: Has DMA mem2mem finished? */
+    /* Configure dma mem2mem transfer */
+    dma_mem2mem_configure(h_dma_mem2mem,
+        &(self0->states[0]),
+        &(self0->states[2]),
+        (sizeof(self0->states) - 2 * sizeof(q15_t));
+    );
 
-        /* Filter Ref with Sn Path */
-        fir_circular_pushData(&(self->fir_Sn), samples.refSample);
-        refSn = fir_circular_calculate(&(self->fir_Sn));
+    /* Init filters */
+    fir_circular_init(
+        &(self0->fir_Sn),
+        anc_Sn_coeffs,
+        fir_circular_getDataInPtr(&self1->fir_Sn),
+        self0->states.Sn_state,
+        ANC_SN_FILTER_LENGTH
+    );
 
-        /* TODO: Append refSn as filter state (maybe use fir circular) */
+    fir_circular_init(
+        &(self0->fir_SnOut),
+        NULL,
+        fir_circular_getDataInPtr(&self1->fir_SnOut),
+        self0->states.SnOut_state,
+        ANC_WN_FILTER_LENGTH
+    );
 
-        /* Update Wn using LNLMS algorithm */
-        lnlms_circular_update(self->lnlms, samples.errSample);
+    fir_circular_init(
+        &(self0->fir_Wn),
+        anc_Wn_coeffs,
+        fir_circular_getDataInPtr(&self1->fir_Wn),
+        self0->states.Wn_state,
+        ANC_WN_FILTER_LENGTH
+    );
 
-        /* Filter Ref with Wn Path and calculate u */
-        fir_circular_pushData(&(self->fir_Wn), samples.refSample);
-        result = fir_circular_calculate(&(self->fir_Sn));
-
-        /* TODO: Run DMA mem2mem for shifting states */
-    }
-    else
-    {
-        /* No output waveform generated */
-        result = 0;
-    }
-
-    return result;
+    /* Init LNLMS algorithm */
+    lnlms_circular_init(
+        &(self0->lnlms),
+        anc_Wn_coeffs,
+        ANC_ONLINE_ALPHA,
+        ANC_ONLINE_MU,
+        self0->states.SnOut_state,
+        ANC_WN_FILTER_LENGTH
+    );
 }

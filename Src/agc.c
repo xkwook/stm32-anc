@@ -21,8 +21,8 @@
 
 #define MARGIN_MIN          128u
 
-#define MARGIN_GAIN_2       ((MARGIN_MAX * GAIN_2 / GAIN_4)   + MARGIN_MIN)
-#define MARGIN_GAIN_4       ((MARGIN_MAX * GAIN_4 / GAIN_10)  + MARGIN_MIN)
+#define MARGIN_GAIN_2       ((MARGIN_MAX * GAIN_2  / GAIN_4)  + MARGIN_MIN)
+#define MARGIN_GAIN_4       ((MARGIN_MAX * GAIN_4  / GAIN_10) + MARGIN_MIN)
 #define MARGIN_GAIN_10      ((MARGIN_MAX * GAIN_10 / GAIN_20) + MARGIN_MIN)
 
 
@@ -59,7 +59,7 @@ void agc_disable(agc_t* self)
     self->enable = DISABLED;
 }
 
-inline void agc_adapt(
+void agc_adapt(
     agc_t*      self,
     uint16_t*   refData_p,
     uint16_t*   errData_p,

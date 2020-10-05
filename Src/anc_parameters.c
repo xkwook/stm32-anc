@@ -7,12 +7,16 @@
 
 #include "anc_parameters.h"
 
+q15_t anc_Sn_coeffs[ANC_SN_FILTER_LENGTH];
+
+q15_t anc_Wn_coeffs[ANC_WN_FILTER_LENGTH];
+
 const q15_t anc_iir_b_coeffs[ANC_IIR_FILTER_ORDER + 1] =
 {
        10846,
       -32271,
        32271,
-      -10846,
+      -10846
 };
 
 const q15_t anc_iir_a_coeffs[ANC_IIR_FILTER_ORDER] =
@@ -22,40 +26,43 @@ const q15_t anc_iir_a_coeffs[ANC_IIR_FILTER_ORDER] =
       -10340
 };
 
+const q31_t anc_iir_scaling_factor =
+       94499;
+
 const q15_t anc_fir_decim_coeffs[ANC_FIR_FILTER_ORDER + 1] =
 {
-         -26,
-         -90,
-        -193,
-        -347,
-        -526,
-        -659,
-        -632,
-        -310,
-         425,
-        1641,
-        3313,
-        5318,
-        7437,
-        9389,
-       10891,
-       11707,
-       11707,
-       10891,
-        9389,
-        7437,
-        5318,
-        3313,
-        1641,
-         425,
-        -310,
-        -632,
-        -659,
-        -526,
-        -347,
-        -193,
-         -90,
-         -26
+          -9,
+         -31,
+         -67,
+        -120,
+        -182,
+        -229,
+        -219,
+        -108,
+         148,
+         569,
+        1149,
+        1844,
+        2579,
+        3256,
+        3776,
+        4059,
+        4059,
+        3776,
+        3256,
+        2579,
+        1844,
+        1149,
+         569,
+         148,
+        -108,
+        -219,
+        -229,
+        -182,
+        -120,
+         -67,
+         -31,
+          -9
 };
 
 const q15_t anc_fir_interp_coeffs[ANC_FIR_FILTER_ORDER + 1] =

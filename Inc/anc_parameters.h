@@ -10,10 +10,27 @@
 
 #include "anc_math.h"
 
+/* ANC NLMS offline identification parameters */
+#define ANC_OFFLINE_MU                      1.0f
+#define ANC_OFFLINE_ALPHA                   ((q15_t) ((1u << 15) - 1))
+
+/* ANC NLMS for FxLMS online adaptation */
+#define ANC_ONLINE_MU                       -0.1f
+#define ANC_ONLINE_ALPHA                    ((q15_t) 32735)
+
+/* Secondary path filter */
+#define ANC_SN_FILTER_LENGTH                128
+extern q15_t anc_Sn_coeffs[ANC_SN_FILTER_LENGTH];
+
+/* Feed-forward control adaptive filter */
+#define ANC_WN_FILTER_LENGTH                128
+extern q15_t anc_Wn_coeffs[ANC_WN_FILTER_LENGTH];
+
 /* High-pass (20 Hz) IIR filter with notch (50 Hz) */
 #define ANC_IIR_FILTER_ORDER                3
 extern const q15_t anc_iir_b_coeffs[ANC_IIR_FILTER_ORDER + 1];
 extern const q15_t anc_iir_a_coeffs[ANC_IIR_FILTER_ORDER];
+extern const q31_t anc_iir_scaling_factor;
 
 /* Low-pass FIR filters for decimation and interpolation */
 #define ANC_FIR_FILTER_ORDER                31

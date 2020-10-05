@@ -7,6 +7,8 @@
 
 #include "anc_processing.h"
 
+#include "anc_parameters.h"
+
 /* Private data */
 
 static const m_inShiftTable[4] =
@@ -25,110 +27,75 @@ static const m_outShiftTable[4] =
     1u
 };
 
+/* Private methods declaration */
+
+void InitCircularFilters(
+    anc_processing_t*   self0,
+    anc_processing_t*   self1
+);
+
 /* Pulic metods definition */
 
-void anc_processing_init(anc_processing_t* self)
-{
-
-}
-
-inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
-    anc_processing_t*   self,
-    uint16_t*           refMicBfr,
-    uint16_t*           errMicBfr
+void anc_processing_init(
+    anc_processing_t*   self0,
+    anc_processing_t*   self1,
+    agc_t*              h_agc,
+    uart_transmitter_t* h_uart_transmitter
 )
 {
-    anc_processing_preprocessing_data_t samples;
-    q15_t*      refIn_p;
-    q15_t*      errIn_p;
-    anc_gain_t  refGain;
-    anc_gain_t  errGain;
-    uint32_t    refShift;
-    uint32_t    errShift;
+    /* Init handle pointers */
+    self0->h_agc                = h_agc;
+    self0->h_uart_transmitter   = h_uart_transmitter;
+    self1->h_agc                = h_agc;
+    self1->h_uart_transmitter   = h_uart_transmitter;
 
-    /* Load previous gains */
-    refGain = anc_gain_refGet();
-    errGain = anc_gain_errGet();
-
-    /* Run AGC */
-    agc_adapt(self->h_agc, refMicBfr, errMicBfr, outDacBfr);
-
-    /* Init state pointers */
-    refIn_p = self->refIn;
-    errIn_p = self->errIn;
-
-    /* Convert ref data to q15 buffer */
-    refShift = m_inShiftTable[(int) refGain];
-
-    *refIn_p++ = (*refMicBfr++ - ANC_PROCESSING_OFFSET)
-                << refShift;
-    *refIn_p++ = (*refMicBfr++ - ANC_PROCESSING_OFFSET)
-                << refShift;
-    *refIn_p++ = (*refMicBfr++ - ANC_PROCESSING_OFFSET)
-                << refShift;
-    *refIn_p   = (*refMicBfr   - ANC_PROCESSING_OFFSET)
-                << refShift;
-
-    /* Convert err data to q15 buffer */
-    errShift = m_inShiftTable[(int) errGain];
-
-    *errIn_p++ = (*errMicBfr++ - ANC_PROCESSING_OFFSET)
-                << errShift;
-    *errIn_p++ = (*errMicBfr++ - ANC_PROCESSING_OFFSET)
-                << errShift;
-    *errIn_p++ = (*errMicBfr++ - ANC_PROCESSING_OFFSET)
-                << errShift;
-    *errIn_p   = (*errMicBfr   - ANC_PROCESSING_OFFSET)
-                << errShift;
-
-    /* FIR and decimate */
-    samples.refSample = fir_circular_decimate_calculate(self->h_fir_decimate_ref);
-    samples.errSample = fir_circular_decimate_calculate(self->h_fir_decimate_err);
-
-    /* Perform IIR3 on input data */
-    iir3_circular_pushData(self->h_iir3_ref, samples.refSample);
-    iir3_circular_pushData(self->h_iir3_err, samples.errSample);
-    samples.refSample = iir3_circular_calculate(self->h_iir3_ref);
-    samples.errSample = iir3_circular_calculate(self->h_iir3_err);
-
-    /* TODO: Add data to log buffer */
+    /* Init circular filters for both stages */
+    InitCircularFilters(self0, self1);
+    InitCircularFilters(self1, self0);
 }
 
-inline void anc_processing_postprocessing(
-    anc_processing_t*   self,
-    q15_t               outSample,
-    uint16_t*           outDacBfr
+/* Private methods definition */
+
+void InitCircularFilters(
+    anc_processing_t*   self0,
+    anc_processing_t*   self1
 )
 {
-    q15_t*      out_p;
-    anc_gain_t  outGain;
-    uint32_t    outShift;
+    fir_circular_decimate_init(
+        &(self0->fir_decimate_ref),
+        (q15_t*) anc_fir_decim_coeffs,
+        self1->refIn,
+        self0->refIn
+    );
 
-    /* Load new gain for output */
-    outGain = anc_gain_outGet();
+    fir_circular_decimate_init(
+        &(self0->fir_decimate_err),
+        (q15_t*) anc_fir_decim_coeffs,
+        self1->errIn,
+        self0->errIn
+    );
 
-    /* Init state pointer */
-    out_p = self->out;
+    iir3_circular_init(
+        &(self0->iir3_ref),
+        (q15_t*) anc_iir_b_coeffs,
+        (q15_t*) anc_iir_a_coeffs,
+        anc_iir_scaling_factor,
+        iir3_circular_getDataInPtr(&(self1->iir3_ref)),
+        iir3_circular_getDataOutPtr(&(self1->iir3_ref))
+    );
 
-    /* Interpolate u with FIR */
-    fir_circular_interp_pushData(self->h_fir_interp, outSample);
-    fir_circular_interp_calculate(self->h_fir_interp, out_p);
+    iir3_circular_init(
+        &(self0->iir3_err),
+        (q15_t*) anc_iir_b_coeffs,
+        (q15_t*) anc_iir_a_coeffs,
+        anc_iir_scaling_factor,
+        iir3_circular_getDataInPtr(&(self1->iir3_err)),
+        iir3_circular_getDataOutPtr(&(self1->iir3_err))
+    );
 
-    /* Convert from q15 to DAC format with saturation */
-    outShift = m_outShiftTable[(int) outGain];
-
-    *outDacBfr++ = (uint16_t) (
-        __SSAT((*out_p++ >> outShift), 12)
-        + ANC_PROCESSING_OFFSET);
-    *outDacBfr++ = (uint16_t) (
-        __SSAT((*out_p++ >> outShift), 12)
-        + ANC_PROCESSING_OFFSET);
-    *outDacBfr++ = (uint16_t) (
-        __SSAT((*out_p++ >> outShift), 12)
-        + ANC_PROCESSING_OFFSET);
-    *outDacBfr   = (uint16_t) (
-        __SSAT((*out_p   >> outShift), 12)
-        + ANC_PROCESSING_OFFSET);
-
-    /* TODO: Log data now maybe? */
+    fir_circular_interp_init(
+        &(self0->fir_interp),
+        (q15_t*) anc_fir_interp_coeffs,
+        fir_circular_interp_getDataInPtr(&(self1->fir_interp))
+    );
 }

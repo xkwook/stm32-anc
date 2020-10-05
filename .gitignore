@@ -1,6 +1,7 @@
-vscode/
+.vscode/
 .settings/
 **/**.bak
 **/Backup/
 Debug/
 .sw4stm32.**
+**/_build/
