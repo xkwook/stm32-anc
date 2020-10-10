@@ -8,6 +8,16 @@
 #include "dma_mem2mem.h"
 #include "stddef.h"
 
+#define N_TEST		100
+
+/* Private methods declaration */
+
+static void test_finished_callback(
+    dma_mem2mem_t*  self
+);
+
+static uint32_t test_pattern(uint32_t iteration);
+
 /* Public methods definition */
 
 void dma_mem2mem_init(
@@ -63,4 +73,59 @@ int dma_mem2mem_configure(
     );
 
     return DMA_MEM2MEM_SUCCESS;
+}
+
+int dma_mem2mem_test(
+    dma_mem2mem_t*  self
+)
+{
+    static const int N      = N_TEST;
+    static const int shift  = 20;
+    static uint32_t  memory[N_TEST];
+
+    int retCode = DMA_MEM2MEM_SUCCESS;
+
+    /* Init memory */
+    for (uint32_t i = 0; i < N; i++)
+    {
+        memory[i] = test_pattern(i);
+    }
+
+    dma_mem2mem_setCallback(self,
+        test_finished_callback);
+
+    dma_mem2mem_configure(self,
+        &memory[0],
+        &memory[shift],
+        sizeof(memory[0]) * (N - shift)
+    );
+
+    dma_mem2mem_start(self);
+
+    /* Wait for finished callback */
+    while (self->callback);
+
+    /* Check memory after shifting */
+    for (uint32_t i = 0; i < (N - shift); i++)
+    {
+        if (memory[i] != test_pattern(i + shift))
+        {
+            retCode = DMA_MEM2MEM_TEST_FAILED;
+            break;
+        }
+    }
+
+    return retCode;
+}
+
+static void test_finished_callback(
+    dma_mem2mem_t*  self
+)
+{
+    self->callback = NULL;
+}
+
+static uint32_t test_pattern(uint32_t iteration)
+{
+    return 0xDEAD0000 + iteration;
 }

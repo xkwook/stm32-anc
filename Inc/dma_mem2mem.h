@@ -10,17 +10,17 @@
 
 #include "main.h"
 
-#define DMA_MEM2MEM_SUCCESS     0x00
+#define DMA_MEM2MEM_SUCCESS      0x00
 #define DMA_MEM2MEM_BUSY        -0x01
+#define DMA_MEM2MEM_TEST_FAILED -0x02
 
-#define DMA_MEM2MEM_READY       0x00
+#define DMA_MEM2MEM_READY        0x00
 
 struct dma_mem2mem_struct
 {
-    uint32_t        ready;
     DMA_TypeDef*    DMAx;
     uint32_t        Stream;
-    void    (*callback)(struct dma_mem2mem_struct*);
+    void volatile    (*callback)(struct dma_mem2mem_struct*);
 };
 
 typedef struct dma_mem2mem_struct dma_mem2mem_t;
@@ -49,6 +49,10 @@ int dma_mem2mem_configure(
     void*           dest,
     void*           source,
     uint32_t        length
+);
+
+int dma_mem2mem_test(
+    dma_mem2mem_t*  self
 );
 
 /* Public inline methods */

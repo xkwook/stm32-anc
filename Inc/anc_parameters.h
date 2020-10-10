@@ -36,7 +36,7 @@ typedef enum
 extern q15_t anc_Sn_coeffs[ANC_SN_FILTER_LENGTH];
 
 /* Feed-forward control adaptive filter */
-#define ANC_WN_FILTER_LENGTH                128
+#define ANC_WN_FILTER_LENGTH                64
 extern q15_t anc_Wn_coeffs[ANC_WN_FILTER_LENGTH];
 
 /* High-pass (20 Hz) IIR filter with notch (50 Hz) */

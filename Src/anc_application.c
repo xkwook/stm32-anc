@@ -17,6 +17,7 @@
 #include "anc_algorithm.h"
 #include "anc_offline_identification.h"
 #include "swo_logger.h"
+#include "performance.h"
 
 typedef enum
 {
@@ -38,6 +39,7 @@ struct anc_application_struct
     anc_processing_logData_t        ancProcessingLogData;
     anc_processing_t                ancProcessing[2];
     anc_algorithm_t                 ancAlgorithm[2];
+    performance_t                   performance[2];
     anc_offline_identification_t    ancOfflineIdentification[2];
     /* Private variables */
     anc_application_state_t                 state;
@@ -125,6 +127,26 @@ void anc_application_init(
         anc_Wn_coeffs,
         ANC_WN_FILTER_LENGTH
     );
+
+    /* Test DMA mem2mem */
+
+    if (dma_mem2mem_test(h_dmaMem2mem0) == DMA_MEM2MEM_SUCCESS)
+    {
+        SWO_LOG("DmaMem2Mem0 test passed!");
+    }
+    else
+    {
+        SWO_LOG("DmaMem2Mem0 test failed!");
+    }
+
+    if (dma_mem2mem_test(h_dmaMem2mem1) == DMA_MEM2MEM_SUCCESS)
+    {
+        SWO_LOG("DmaMem2Mem1 test passed!");
+    }
+    else
+    {
+        SWO_LOG("DmaMem2Mem1 test failed!");
+    }
 }
 
 void anc_application_start(void)
@@ -271,7 +293,7 @@ static inline void IdleStateHandle(anc_application_t* self)
                 ANC_OFFLINE_IDENTIFICATION_CYCLES
             );
 
-            LL_mDelay(mDelay);
+            //LL_mDelay(mDelay);
             anc_acquisition_start(self->h_ancAcquisition);
             self->state = ANC_APPLICATION_ACQUISITION;
             break;
@@ -322,6 +344,13 @@ static inline void AcquisitionStateHandle(anc_application_t* self)
             break;
         case ANC_CMD_SET_GAINS:
             SetGains(cmdData);
+            break;
+
+        case ANC_CMD_PERFORMANCE:
+            SWO_LOG("Performance: %5u, %5u",
+                performance_get_result(&self->performance[0]),
+                performance_get_result(&self->performance[1])
+            );
             break;
 
         default:
@@ -376,6 +405,16 @@ static inline void OfflineIdentificationStateHandle(anc_application_t* self)
         case ANC_CMD_STOP:
             anc_acquisition_stop(self->h_ancAcquisition);
             self->state = ANC_APPLICATION_IDLE;
+            break;
+        case ANC_CMD_SET_GAINS:
+            SetGains(cmdData);
+            break;
+
+        case ANC_CMD_PERFORMANCE:
+            SWO_LOG("Performance: %5u, %5u",
+                performance_get_result(&self->performance[0]),
+                performance_get_result(&self->performance[1])
+            );
             break;
 
         default:
@@ -459,6 +498,8 @@ void acquisition_bfr0_callback(
     anc_processing_preprocessing_data_t inputSamples;
     q15_t out;
 
+    performance_begin(&m_app.performance[0]);
+
     inputSamples = anc_processing_preprocessing(
         &m_app.ancProcessing[0],
         refMicBfr,
@@ -477,6 +518,8 @@ void acquisition_bfr0_callback(
         out,
         outDacBfr
     );
+
+    performance_end(&m_app.performance[0]);
 }
 
 void acquisition_bfr1_callback(
@@ -487,6 +530,8 @@ void acquisition_bfr1_callback(
 {
     anc_processing_preprocessing_data_t inputSamples;
     q15_t out;
+
+    performance_begin(&m_app.performance[1]);
 
     inputSamples = anc_processing_preprocessing(
         &m_app.ancProcessing[1],
@@ -506,6 +551,8 @@ void acquisition_bfr1_callback(
         out,
         outDacBfr
     );
+
+    performance_end(&m_app.performance[1]);
 }
 
 void offline_identification_bfr0_callback(
@@ -516,6 +563,8 @@ void offline_identification_bfr0_callback(
 {
     anc_processing_preprocessing_data_t inputSamples;
     q15_t out;
+
+    performance_begin(&m_app.performance[0]);
 
     inputSamples = anc_processing_preprocessing(
         &m_app.ancProcessing[0],
@@ -535,6 +584,10 @@ void offline_identification_bfr0_callback(
         out,
         outDacBfr
     );
+
+    m_app.ancProcessingLogData.outSample = errFiltered;
+
+    performance_end(&m_app.performance[0]);
 }
 
 void offline_identification_bfr1_callback(
@@ -545,6 +598,8 @@ void offline_identification_bfr1_callback(
 {
     anc_processing_preprocessing_data_t inputSamples;
     q15_t out;
+
+    performance_begin(&m_app.performance[1]);
 
     inputSamples = anc_processing_preprocessing(
         &m_app.ancProcessing[1],
@@ -564,6 +619,10 @@ void offline_identification_bfr1_callback(
         out,
         outDacBfr
     );
+
+    m_app.ancProcessingLogData.outSample = errFiltered;
+
+    performance_end(&m_app.performance[1]);
 }
 
 /* Private callbacks from other modules */
@@ -571,4 +630,36 @@ void offline_identification_bfr1_callback(
 void uart_receiver_onQueueFullCallback(uart_receiver_t* self)
 {
     SWO_LOG("Uart Receiver Queue full event!");
+}
+
+void anc_processing_onErrorCallback(anc_processing_t*   self)
+{
+    SWO_LOG("ANC processing error!");
+    anc_acquisition_stop(m_app.h_ancAcquisition);
+    m_app.state = ANC_APPLICATION_IDLE;
+}
+
+void anc_algorithm_onErrorCallback(anc_algorithm_t* self)
+{
+    SWO_LOG("ANC algorithm error!");
+    anc_acquisition_stop(m_app.h_ancAcquisition);
+    m_app.state = ANC_APPLICATION_IDLE;
+}
+
+void anc_offline_identification_onErrorCallback(
+    anc_offline_identification_t* self
+)
+{
+    SWO_LOG("ANC offline identification error!");
+    anc_acquisition_stop(m_app.h_ancAcquisition);
+    m_app.state = ANC_APPLICATION_IDLE;
+}
+
+void anc_offline_identification_onEndCallback(
+    anc_offline_identification_t* self
+)
+{
+    SWO_LOG("ANC offline identification finished.");
+    anc_acquisition_stop(m_app.h_ancAcquisition);
+    m_app.state = ANC_APPLICATION_IDLE;
 }

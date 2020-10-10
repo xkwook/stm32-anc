@@ -25,10 +25,10 @@
 
 struct uart_receiver_struct
 {
-    char*   read_p;
-    char*   write_p;
-    char*   last_p;
-    char    bfr[UART_RECEIVER_BFR_NUM][UART_RECEIVER_BFR_MAXLEN];
+    volatile char* volatile  read_p;
+    volatile char* volatile  write_p;
+    volatile char*           last_p;
+    char  volatile  bfr[UART_RECEIVER_BFR_NUM][UART_RECEIVER_BFR_MAXLEN];
 };
 
 typedef struct uart_receiver_struct uart_receiver_t;

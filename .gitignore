@@ -3,5 +3,6 @@
 **/**.bak
 **/Backup/
 Debug/
+Release/
 .sw4stm32.**
 **/_build/

@@ -62,7 +62,7 @@ static inline q15_t iir3_circular_calculate(iir3_circular_t* self)
     q15_t* c1_p;
     q15_t  c0, c1;
     q15_t  out;
-    q31_t  acc0, acc1, sum0;
+    q63_t  acc0, acc1, sum0;
 
     acc0 = 0;
     acc1 = 0;

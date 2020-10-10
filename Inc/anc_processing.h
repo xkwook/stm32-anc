@@ -85,23 +85,24 @@ static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
     anc_processing_preprocessing_data_t samples;
     q15_t*      refIn_p;
     q15_t*      errIn_p;
-    anc_gain_t  refGain;
-    anc_gain_t  errGain;
-    uint32_t    refShift;
-    uint32_t    errShift;
+    //anc_gain_t  refGain;
+    //anc_gain_t  errGain;
+    //uint32_t    refShift;
+    //uint32_t    errShift;
 
     /* Load previous gains */
-    refGain = anc_gain_refGet();
-    errGain = anc_gain_errGet();
+    //refGain = anc_gain_refGet();
+    //errGain = anc_gain_errGet();
 
     /* Run AGC */
-    agc_adapt(self->h_agc, refMicBfr, errMicBfr, outDacBfr);
+    //agc_adapt(self->h_agc, refMicBfr, errMicBfr, outDacBfr);
 
     /* Init state pointers */
     refIn_p = self->refIn;
     errIn_p = self->errIn;
 
     /* Convert ref data to q15 buffer */
+    /*
     refShift = anc_processing_inShiftTable[(int) refGain];
 
     *refIn_p++ = (*refMicBfr++ - ANC_PROCESSING_OFFSET)
@@ -112,8 +113,10 @@ static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
                 << refShift;
     *refIn_p   = (*refMicBfr   - ANC_PROCESSING_OFFSET)
                 << refShift;
+    */
 
     /* Convert err data to q15 buffer */
+    /*
     errShift = anc_processing_inShiftTable[(int) errGain];
 
     *errIn_p++ = (*errMicBfr++ - ANC_PROCESSING_OFFSET)
@@ -124,6 +127,24 @@ static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
                 << errShift;
     *errIn_p   = (*errMicBfr   - ANC_PROCESSING_OFFSET)
                 << errShift;
+    */
+    *refIn_p++ = (*refMicBfr++ - ANC_PROCESSING_OFFSET)
+                << 4;
+    *refIn_p++ = (*refMicBfr++ - ANC_PROCESSING_OFFSET)
+                << 4;
+    *refIn_p++ = (*refMicBfr++ - ANC_PROCESSING_OFFSET)
+                << 4;
+    *refIn_p   = (*refMicBfr   - ANC_PROCESSING_OFFSET)
+                << 4;
+
+    *errIn_p++ = (*errMicBfr++ - ANC_PROCESSING_OFFSET)
+                << 4;
+    *errIn_p++ = (*errMicBfr++ - ANC_PROCESSING_OFFSET)
+                << 4;
+    *errIn_p++ = (*errMicBfr++ - ANC_PROCESSING_OFFSET)
+                << 4;
+    *errIn_p   = (*errMicBfr   - ANC_PROCESSING_OFFSET)
+                << 4;
 
     /* FIR and decimate */
     samples.refSample = fir_circular_decimate_calculate(&self->fir_decimate_ref);
@@ -147,17 +168,18 @@ static inline void anc_processing_postprocessing(
 {
     q15_t       out[ANC_PROCESSING_CHUNK_SIZE];
     q15_t*      out_p = out;
-    anc_gain_t  outGain;
-    uint32_t    outShift;
+    //anc_gain_t  outGain;
+    //uint32_t    outShift;
 
     /* Load new gain for output */
-    outGain = anc_gain_outGet();
+    //outGain = anc_gain_outGet();
 
     /* Interpolate u with FIR */
     fir_circular_interp_pushData(&self->fir_interp, outSample);
     fir_circular_interp_calculate(&self->fir_interp, out_p);
 
     /* Convert from q15 to 12-bit DAC format with saturation */
+    /*
     outShift = anc_processing_outShiftTable[(int) outGain];
 
     *outDacBfr++ = (uint16_t) (
@@ -172,6 +194,11 @@ static inline void anc_processing_postprocessing(
     *outDacBfr   = (uint16_t) (
         __SSAT((*out_p   >> outShift), 12)
         + ANC_PROCESSING_OFFSET);
+    */
+    *outDacBfr++ = (*out_p++ >> 4) + ANC_PROCESSING_OFFSET;
+    *outDacBfr++ = (*out_p++ >> 4) + ANC_PROCESSING_OFFSET;
+    *outDacBfr++ = (*out_p++ >> 4) + ANC_PROCESSING_OFFSET;
+    *outDacBfr   = (*out_p   >> 4) + ANC_PROCESSING_OFFSET;
 
     if (uart_transmitter_isBusy(self->h_uart_transmitter))
     {

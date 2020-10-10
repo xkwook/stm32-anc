@@ -18,6 +18,8 @@
 #include "lnlms_circular.h"
 #include "dma_mem2mem.h"
 
+volatile q15_t errFiltered;
+
 #define ANC_OFFLINE_IDENTIFICATION_HALF     0u
 #define ANC_OFFLINE_IDENTIFICATION_FULL     1u
 
@@ -88,6 +90,9 @@ static inline q15_t anc_offline_identification_calculate(
 
         /* Calculate measured error with reference model */
         error = (q31_t) samples.errSample - (q31_t) out;
+
+        /* Temporary only */
+        errFiltered = out;
 
         /* Update Sn using LNLMS algorithm */
         lnlms_circular_update(&self->lnlms, error);

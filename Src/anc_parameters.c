@@ -13,21 +13,33 @@ q15_t anc_Wn_coeffs[ANC_WN_FILTER_LENGTH];
 
 const q15_t anc_iir_b_coeffs[ANC_IIR_FILTER_ORDER + 1] =
 {
+/*
        10846,
       -32271,
        32271,
       -10846
+*/
+       32513,
+      -32513,
+           0,
+           0
 };
 
 const q15_t anc_iir_a_coeffs[ANC_IIR_FILTER_ORDER] =
 {
+      -32257,
+           0,
+           0
+/*
       -32768,
        31762,
       -10340
+*/
 };
 
 const q31_t anc_iir_scaling_factor =
-       94499;
+//       94499;
+       32768;
 
 const q15_t anc_fir_decim_coeffs[ANC_FIR_FILTER_ORDER + 1] =
 {

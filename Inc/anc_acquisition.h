@@ -43,6 +43,15 @@ struct anc_acquisition_struct {
 
 typedef struct anc_acquisition_struct anc_acquisition_t;
 
+/* Private inline methods declaration */
+
+static inline uint32_t anc_acquisition_IsActiveMasterFlag_HT();
+static inline uint32_t anc_acquisition_IsActiveMasterFlag_TC();
+static inline uint32_t anc_acquisition_IsActiveSlavesFlag_HT();
+static inline uint32_t anc_acquisition_IsActiveSlavesFlag_TC();
+static inline void anc_acquisition_ClearFlags_HT();
+static inline void anc_acquisition_ClearFlags_TC();
+
 /* Public methods declaration */
 
 void anc_acquisition_init(anc_acquisition_t* self);
@@ -59,6 +68,72 @@ void anc_acquisition_start(anc_acquisition_t* self);
 
 void anc_acquisition_stop(anc_acquisition_t* self);
 
-void anc_acquisition_dmaIrqHandler(anc_acquisition_t* self);
+/* Inline methods */
+
+static inline void anc_acquisition_dmaIrqHandler(anc_acquisition_t* self)
+{
+    /* Half Transfer interrupt */
+    if (anc_acquisition_IsActiveMasterFlag_HT())
+    {
+        /* Wait for all Slaves DMA transfers to complete */
+        while(!anc_acquisition_IsActiveSlavesFlag_HT());
+        anc_acquisition_ClearFlags_HT();
+        self->halfBfrCallback(
+            self->refMicBfr,
+            self->errMicBfr,
+            self->outDacBfr
+        );
+    }
+    /* Transfer Completed interrupt */
+    if (anc_acquisition_IsActiveMasterFlag_TC())
+    {
+        /* Wait for all Slaves DMA transfers to complete */
+        while(!anc_acquisition_IsActiveSlavesFlag_TC());
+        anc_acquisition_ClearFlags_TC();
+        self->fullBfrCallback(
+            &self->refMicBfr[self->chunkSize],
+            &self->errMicBfr[self->chunkSize],
+            &self->outDacBfr[self->chunkSize]
+        );
+    }
+}
+
+/* Private inline methods definition */
+
+static inline uint32_t anc_acquisition_IsActiveMasterFlag_HT()
+{
+    return LL_DMA_IsActiveFlag_HT0(ANC_REF_MIC_DMA);
+}
+
+static inline uint32_t anc_acquisition_IsActiveMasterFlag_TC()
+{
+    return LL_DMA_IsActiveFlag_TC0(ANC_REF_MIC_DMA);
+}
+
+static inline uint32_t anc_acquisition_IsActiveSlavesFlag_HT()
+{
+    return (LL_DMA_IsActiveFlag_HT2(ANC_ERR_MIC_DMA)
+        && LL_DMA_IsActiveFlag_HT6(ANC_OUT_DAC_DMA));
+}
+
+static inline uint32_t anc_acquisition_IsActiveSlavesFlag_TC()
+{
+    return (LL_DMA_IsActiveFlag_TC2(ANC_ERR_MIC_DMA)
+        && LL_DMA_IsActiveFlag_TC6(ANC_OUT_DAC_DMA));
+}
+
+static inline void anc_acquisition_ClearFlags_HT()
+{
+    LL_DMA_ClearFlag_HT0(ANC_REF_MIC_DMA);
+    LL_DMA_ClearFlag_HT2(ANC_ERR_MIC_DMA);
+    LL_DMA_ClearFlag_HT6(ANC_OUT_DAC_DMA);
+}
+
+static inline void anc_acquisition_ClearFlags_TC()
+{
+    LL_DMA_ClearFlag_TC0(ANC_REF_MIC_DMA);
+    LL_DMA_ClearFlag_TC2(ANC_ERR_MIC_DMA);
+    LL_DMA_ClearFlag_TC6(ANC_OUT_DAC_DMA);
+}
 
 #endif /* ANC_ACQUISITION_H_ */

@@ -26,6 +26,7 @@
 #define OFFLINE_IDENTIFICATION_STR  "offline-identification"
 #define SET_OFFLINE_LMS_MI_STR      "set-offline-lms-mu"
 #define SET_ANC_LMS_MI_STR          "set-anc-lms-mu"
+#define PERFORMANCE_STR             "performance"
 
 //#define HELP_CONTENT_STR            ""
 
@@ -78,6 +79,8 @@ anc_cmd_t anc_cmd_decode(const char* const cmd, uint8_t** retCmdData)
             ANC_CMD_IDENTIFICATION);
     ADD_CMD(OFFLINE_IDENTIFICATION_STR,
             ANC_CMD_OFFLINE_IDENTIFICATION);
+    ADD_CMD(PERFORMANCE_STR,
+            ANC_CMD_PERFORMANCE);
     /* Set mi commands */
 
     return ANC_CMD_WRONG_CMD;

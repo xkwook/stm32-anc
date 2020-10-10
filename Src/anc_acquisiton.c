@@ -17,13 +17,6 @@ static void initDacDma(uint16_t* bfr, DAC_TypeDef *DACx, uint32_t DAC_Channel, D
 static void enableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream);
 static void disableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream);
 
-static inline uint32_t IsActiveMasterFlag_HT();
-static inline uint32_t IsActiveMasterFlag_TC();
-static inline uint32_t IsActiveSlavesFlag_HT();
-static inline uint32_t IsActiveSlavesFlag_TC();
-static inline void ClearFlags_HT();
-static inline void ClearFlags_TC();
-
 /* Public methods definition */
 
 void anc_acquisition_init(anc_acquisition_t* self)
@@ -103,34 +96,6 @@ void anc_acquisition_stop(anc_acquisition_t* self)
     LL_DMA_DisableStream(ANC_OUT_DAC_DMA, ANC_OUT_DAC_DMA_STREAM);
 }
 
-void anc_acquisition_dmaIrqHandler(anc_acquisition_t* self)
-{
-    /* Half Transfer interrupt */
-    if (IsActiveMasterFlag_HT())
-    {
-        /* Wait for all Slaves DMA transfers to complete */
-        while(!IsActiveSlavesFlag_HT());
-        ClearFlags_HT();
-        self->halfBfrCallback(
-            self->refMicBfr,
-            self->errMicBfr,
-            self->outDacBfr
-        );
-    }
-    /* Transfer Completed interrupt */
-    if (IsActiveMasterFlag_TC())
-    {
-        /* Wait for all Slaves DMA transfers to complete */
-        while(!IsActiveSlavesFlag_TC());
-        ClearFlags_TC();
-        self->fullBfrCallback(
-            &self->refMicBfr[self->chunkSize],
-            &self->errMicBfr[self->chunkSize],
-            &self->outDacBfr[self->chunkSize]
-        );
-    }
-}
-
 /* Private methods definition */
 
 static void initDma(uint16_t* bfr, uint32_t regAddr, DMA_TypeDef *DMAx, uint32_t Stream)
@@ -175,8 +140,8 @@ static void initDacDma(uint16_t* bfr, DAC_TypeDef *DACx, uint32_t DAC_Channel, D
 static void enableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream)
 {
     /* Clear all flags */
-    ClearFlags_HT();
-    ClearFlags_TC();
+    anc_acquisition_ClearFlags_HT();
+    anc_acquisition_ClearFlags_TC();
 
     /* Enable Half Transfer interrupt */
     LL_DMA_EnableIT_HT(DMAx, Stream);
@@ -194,42 +159,6 @@ static void disableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream)
     LL_DMA_DisableIT_TC(DMAx, Stream);
 
     /* Clear all flags */
-    ClearFlags_HT();
-    ClearFlags_TC();
-}
-
-static inline uint32_t IsActiveMasterFlag_HT()
-{
-    return LL_DMA_IsActiveFlag_HT0(ANC_REF_MIC_DMA);
-}
-
-static inline uint32_t IsActiveMasterFlag_TC()
-{
-    return LL_DMA_IsActiveFlag_TC0(ANC_REF_MIC_DMA);
-}
-
-static inline uint32_t IsActiveSlavesFlag_HT()
-{
-    return (LL_DMA_IsActiveFlag_HT2(ANC_ERR_MIC_DMA)
-        && LL_DMA_IsActiveFlag_HT6(ANC_OUT_DAC_DMA));
-}
-
-static inline uint32_t IsActiveSlavesFlag_TC()
-{
-    return (LL_DMA_IsActiveFlag_TC2(ANC_ERR_MIC_DMA)
-        && LL_DMA_IsActiveFlag_TC6(ANC_OUT_DAC_DMA));
-}
-
-static inline void ClearFlags_HT()
-{
-    LL_DMA_ClearFlag_HT0(ANC_REF_MIC_DMA);
-    LL_DMA_ClearFlag_HT2(ANC_ERR_MIC_DMA);
-    LL_DMA_ClearFlag_HT6(ANC_OUT_DAC_DMA);
-}
-
-static inline void ClearFlags_TC()
-{
-    LL_DMA_ClearFlag_TC0(ANC_REF_MIC_DMA);
-    LL_DMA_ClearFlag_TC2(ANC_ERR_MIC_DMA);
-    LL_DMA_ClearFlag_TC6(ANC_OUT_DAC_DMA);
+    anc_acquisition_ClearFlags_HT();
+    anc_acquisition_ClearFlags_TC();
 }

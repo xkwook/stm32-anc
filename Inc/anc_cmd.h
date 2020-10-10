@@ -45,7 +45,8 @@ typedef enum
     ANC_CMD_IDENTIFICATION,
     ANC_CMD_OFFLINE_IDENTIFICATION,
     ANC_CMD_SET_OFFLINE_LMS_MI,
-    ANC_CMD_SET_ANC_LMS_MI
+    ANC_CMD_SET_ANC_LMS_MI,
+    ANC_CMD_PERFORMANCE
 } anc_cmd_t;
 
 anc_cmd_t anc_cmd_decode(const char* const cmd, uint8_t** retCmdData);
