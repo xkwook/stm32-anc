@@ -62,27 +62,27 @@ void SetGains(uint8_t* cmdData);
 /* Callbacks for anc_acquisition module */
 
 void acquisition_bfr0_callback(
-    uint16_t* refMicBfr,
-    uint16_t* errMicBfr,
-    uint16_t* outDacBfr
+    volatile uint16_t* refMicBfr,
+    volatile uint16_t* errMicBfr,
+    volatile uint16_t* outDacBfr
 );
 
 void acquisition_bfr1_callback(
-    uint16_t* refMicBfr,
-    uint16_t* errMicBfr,
-    uint16_t* outDacBfr
+    volatile uint16_t* refMicBfr,
+    volatile uint16_t* errMicBfr,
+    volatile uint16_t* outDacBfr
 );
 
 void offline_identification_bfr0_callback(
-    uint16_t* refMicBfr,
-    uint16_t* errMicBfr,
-    uint16_t* outDacBfr
+    volatile uint16_t* refMicBfr,
+    volatile uint16_t* errMicBfr,
+    volatile uint16_t* outDacBfr
 );
 
 void offline_identification_bfr1_callback(
-    uint16_t* refMicBfr,
-    uint16_t* errMicBfr,
-    uint16_t* outDacBfr
+    volatile uint16_t* refMicBfr,
+    volatile uint16_t* errMicBfr,
+    volatile uint16_t* outDacBfr
 );
 
 /* Public methods definition */
@@ -192,8 +192,8 @@ anc_application_state_t anc_application_getState(void)
 
 static inline void IdleStateHandle(anc_application_t* self)
 {
-    char* rcvMsg_p;
-    uint32_t* bfr;
+    volatile char* rcvMsg_p;
+    volatile uint32_t* bfr;
     uint32_t stabilizingCycles = 16;
     uint32_t sumCycles = 128;
     uint32_t mDelay = 10000;
@@ -313,7 +313,7 @@ static inline void IdleStateHandle(anc_application_t* self)
 
 static inline void AcquisitionStateHandle(anc_application_t* self)
 {
-    char* rcvMsg_p;
+    volatile char* rcvMsg_p;
     rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
     if (rcvMsg_p != UART_RECEIVER_NO_MSG)
     {
@@ -365,7 +365,7 @@ static inline void AcquisitionStateHandle(anc_application_t* self)
 
 static inline void IdentificationStateHandle(anc_application_t* self)
 {
-    char* rcvMsg_p;
+    volatile char* rcvMsg_p;
     rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
     if (rcvMsg_p != UART_RECEIVER_NO_MSG)
     {
@@ -394,7 +394,7 @@ static inline void IdentificationStateHandle(anc_application_t* self)
 
 static inline void OfflineIdentificationStateHandle(anc_application_t* self)
 {
-    char* rcvMsg_p;
+    volatile char* rcvMsg_p;
     rcvMsg_p = uart_receiver_getMsg(self->h_uartReceiver);
     if (rcvMsg_p != UART_RECEIVER_NO_MSG)
     {
@@ -490,9 +490,9 @@ void SetGains(uint8_t* cmdData)
 /* Callbacks for anc_acquisition module */
 
 void acquisition_bfr0_callback(
-    uint16_t* refMicBfr,
-    uint16_t* errMicBfr,
-    uint16_t* outDacBfr
+    volatile uint16_t* refMicBfr,
+    volatile uint16_t* errMicBfr,
+    volatile uint16_t* outDacBfr
 )
 {
     anc_processing_preprocessing_data_t inputSamples;
@@ -523,9 +523,9 @@ void acquisition_bfr0_callback(
 }
 
 void acquisition_bfr1_callback(
-    uint16_t* refMicBfr,
-    uint16_t* errMicBfr,
-    uint16_t* outDacBfr
+    volatile uint16_t* refMicBfr,
+    volatile uint16_t* errMicBfr,
+    volatile uint16_t* outDacBfr
 )
 {
     anc_processing_preprocessing_data_t inputSamples;
@@ -556,9 +556,9 @@ void acquisition_bfr1_callback(
 }
 
 void offline_identification_bfr0_callback(
-    uint16_t* refMicBfr,
-    uint16_t* errMicBfr,
-    uint16_t* outDacBfr
+    volatile uint16_t* refMicBfr,
+    volatile uint16_t* errMicBfr,
+    volatile uint16_t* outDacBfr
 )
 {
     anc_processing_preprocessing_data_t inputSamples;
@@ -591,9 +591,9 @@ void offline_identification_bfr0_callback(
 }
 
 void offline_identification_bfr1_callback(
-    uint16_t* refMicBfr,
-    uint16_t* errMicBfr,
-    uint16_t* outDacBfr
+    volatile uint16_t* refMicBfr,
+    volatile uint16_t* errMicBfr,
+    volatile uint16_t* outDacBfr
 )
 {
     anc_processing_preprocessing_data_t inputSamples;
@@ -661,5 +661,17 @@ void anc_offline_identification_onEndCallback(
 {
     SWO_LOG("ANC offline identification finished.");
     anc_acquisition_stop(m_app.h_ancAcquisition);
+
+    SWO_LOG("Identified Sn coeffs:");
+    for (int i = 0; i < ANC_SN_FILTER_LENGTH / 4; i++)
+    {
+        SWO_LOG("c%03d = %5d c%03d = %5d c%03d = %5d c%03d = %5d",
+            4*i + 0, anc_Sn_coeffs[4*i + 0],
+            4*i + 1, anc_Sn_coeffs[4*i + 1],
+            4*i + 2, anc_Sn_coeffs[4*i + 2],
+            4*i + 3, anc_Sn_coeffs[4*i + 3]
+        );
+    }
+
     m_app.state = ANC_APPLICATION_IDLE;
 }

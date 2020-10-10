@@ -13,8 +13,8 @@ static identification_t* m_h_identification;
 
 /* Private methods declaration */
 
-static void halfBfrCallback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr);
-static void fullBfrCallback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr);
+static void halfBfrCallback(volatile uint16_t* refMicBfr, volatile uint16_t* errMicBfr, volatile uint16_t* outDacBfr);
+static void fullBfrCallback(volatile uint16_t* refMicBfr, volatile uint16_t* errMicBfr, volatile uint16_t* outDacBfr);
 
 /* Public methods definition */
 
@@ -68,7 +68,7 @@ uint32_t identification_isDone(identification_t* self)
 
 /* Private methods definition */
 
-static void halfBfrCallback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
+static void halfBfrCallback(volatile uint16_t* refMicBfr, volatile uint16_t* errMicBfr, volatile uint16_t* outDacBfr)
 {
     if (m_h_identification->stabilizingCycles == 0)
     {
@@ -81,7 +81,7 @@ static void halfBfrCallback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* 
     }
 }
 
-static void fullBfrCallback(uint16_t* refMicBfr, uint16_t* errMicBfr, uint16_t* outDacBfr)
+static void fullBfrCallback(volatile uint16_t* refMicBfr, volatile uint16_t* errMicBfr, volatile uint16_t* outDacBfr)
 {
     if (m_h_identification->stabilizingCycles)
     {

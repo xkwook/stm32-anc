@@ -23,7 +23,7 @@ volatile q15_t errFiltered;
 #define ANC_OFFLINE_IDENTIFICATION_HALF     0u
 #define ANC_OFFLINE_IDENTIFICATION_FULL     1u
 
-typedef struct __attribute__(( packed, aligned(sizeof(uint32_t)) ))
+typedef volatile struct __attribute__(( packed, aligned(sizeof(uint32_t)) ))
 {
     q15_t   Sn_state    [ANC_SN_FILTER_LENGTH];
 } anc_offline_identification_states_t;
@@ -35,13 +35,13 @@ struct anc_offline_identification_struct
     lnlms_circular_t                    lnlms;
     q15_t*                              excitationSignal_p;
     q15_t                               out;
-    q15_t*                              oldOut_p;
+    volatile q15_t*                     oldOut_p;
     uint32_t                            counter;
     uint32_t                            identificationCycles;
     anc_offline_identification_states_t states;
 };
 
-typedef struct anc_offline_identification_struct anc_offline_identification_t;
+typedef volatile struct anc_offline_identification_struct anc_offline_identification_t;
 
 
 /* Public methods declaration */

@@ -30,7 +30,8 @@
 
 #define ANC_DAC_OFFSET                  2048
 
-typedef void (*anc_acquisition_bfr_callback_t)(uint16_t*, uint16_t*, uint16_t*);
+typedef void (*anc_acquisition_bfr_callback_t)
+    (volatile uint16_t*, volatile uint16_t*, volatile uint16_t*);
 
 struct anc_acquisition_struct {
     uint32_t    chunkSize;
@@ -41,7 +42,7 @@ struct anc_acquisition_struct {
     uint16_t    outDacBfr[ANC_ACQUISITION_BFR_LENGTH];
 };
 
-typedef struct anc_acquisition_struct anc_acquisition_t;
+typedef volatile struct anc_acquisition_struct anc_acquisition_t;
 
 /* Private inline methods declaration */
 

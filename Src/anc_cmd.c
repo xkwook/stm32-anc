@@ -28,11 +28,13 @@
 #define SET_ANC_LMS_MI_STR          "set-anc-lms-mu"
 #define PERFORMANCE_STR             "performance"
 
+#define CMD_BFR_MAXLEN              128
+
 //#define HELP_CONTENT_STR            ""
 
 #define ADD_CMD(str, retEnum)                       \
     do {                                            \
-        if (strncmp(cmd, str, strlen(str)) == 0)    \
+        if (strncmp(cmdBfr, str, strlen(str)) == 0) \
         {                                           \
             return retEnum;                         \
         }                                           \
@@ -41,9 +43,20 @@
 
 static int decodeIntegers(const char* cmd, int32_t* decodedData, const uint32_t maxNum);
 
-anc_cmd_t anc_cmd_decode(const char* const cmd, uint8_t** retCmdData)
+anc_cmd_t anc_cmd_decode(volatile char* cmd, uint8_t** retCmdData)
 {
     static uint8_t cmdData[128];
+    char cmdBfr[CMD_BFR_MAXLEN];
+
+    /* Copy command string to internal buffer */
+    for (int i = 0; i < CMD_BFR_MAXLEN; i++)
+    {
+        cmdBfr[i] = (char) cmd[i];
+        if (cmd[i] == '\0')
+        {
+            break;
+        }
+    }
 
     *retCmdData = NULL;
 
@@ -60,9 +73,14 @@ anc_cmd_t anc_cmd_decode(const char* const cmd, uint8_t** retCmdData)
     ADD_CMD(AGC_OFF_STR,
             ANC_CMD_AGC_OFF);
     /* Set gains cmd */
-    if (strncmp(cmd, SET_GAINS_STR, strlen(SET_GAINS_STR)) == 0)
+    if (strncmp(cmdBfr, SET_GAINS_STR, strlen(SET_GAINS_STR)) == 0)
     {
-        uint32_t num = decodeIntegers(cmd, (int32_t*)cmdData, 128 / sizeof(int32_t));
+        uint32_t num = decodeIntegers(cmdBfr, (int32_t*)cmdData, 128 / sizeof(int32_t));
+
+        if (num < 3)
+        {
+            return ANC_CMD_WRONG_CMD;
+        }
 
         *retCmdData = cmdData;
 

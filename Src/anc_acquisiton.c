@@ -11,9 +11,9 @@
 
 /* Private methods declaration */
 
-static void initDma(uint16_t* bfr, uint32_t regAddr, DMA_TypeDef *DMAx, uint32_t Stream);
-static void initAdcDma(uint16_t* bfr, ADC_TypeDef *ADCx, DMA_TypeDef *DMAx, uint32_t Stream);
-static void initDacDma(uint16_t* bfr, DAC_TypeDef *DACx, uint32_t DAC_Channel, DMA_TypeDef *DMAx, uint32_t Stream);
+static void initDma(volatile uint16_t* bfr, uint32_t regAddr, DMA_TypeDef *DMAx, uint32_t Stream);
+static void initAdcDma(volatile uint16_t* bfr, ADC_TypeDef *ADCx, DMA_TypeDef *DMAx, uint32_t Stream);
+static void initDacDma(volatile uint16_t* bfr, DAC_TypeDef *DACx, uint32_t DAC_Channel, DMA_TypeDef *DMAx, uint32_t Stream);
 static void enableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream);
 static void disableTransfersInterrupts(DMA_TypeDef *DMAx, uint32_t Stream);
 
@@ -98,7 +98,7 @@ void anc_acquisition_stop(anc_acquisition_t* self)
 
 /* Private methods definition */
 
-static void initDma(uint16_t* bfr, uint32_t regAddr, DMA_TypeDef *DMAx, uint32_t Stream)
+static void initDma(volatile uint16_t* bfr, uint32_t regAddr, DMA_TypeDef *DMAx, uint32_t Stream)
 {
     /* According to reference manual DMA stream configuration procedure */
     LL_DMA_SetPeriphAddress(DMAx, Stream,
@@ -107,7 +107,7 @@ static void initDma(uint16_t* bfr, uint32_t regAddr, DMA_TypeDef *DMAx, uint32_t
         (uint32_t)bfr);
 }
 
-static void initAdcDma(uint16_t* bfr, ADC_TypeDef *ADCx, DMA_TypeDef *DMAx, uint32_t Stream)
+static void initAdcDma(volatile uint16_t* bfr, ADC_TypeDef *ADCx, DMA_TypeDef *DMAx, uint32_t Stream)
 {
     uint32_t regAddr = LL_ADC_DMA_GetRegAddr(ADCx, LL_ADC_DMA_REG_REGULAR_DATA);
 
@@ -120,7 +120,7 @@ static void initAdcDma(uint16_t* bfr, ADC_TypeDef *ADCx, DMA_TypeDef *DMAx, uint
     initDma(bfr, regAddr, DMAx, Stream);
 }
 
-static void initDacDma(uint16_t* bfr, DAC_TypeDef *DACx, uint32_t DAC_Channel, DMA_TypeDef *DMAx, uint32_t Stream)
+static void initDacDma(volatile uint16_t* bfr, DAC_TypeDef *DACx, uint32_t DAC_Channel, DMA_TypeDef *DMAx, uint32_t Stream)
 {
     uint32_t regAddr = LL_DAC_DMA_GetRegAddr(DACx, DAC_Channel,
         LL_DAC_DMA_REG_DATA_12BITS_RIGHT_ALIGNED);

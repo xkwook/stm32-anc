@@ -23,7 +23,7 @@ struct performance_struct
     //void        (*callback)(uint16_t);
 };
 
-typedef struct performance_struct performance_t;
+typedef volatile struct performance_struct performance_t;
 
 static inline void performance_start_timer(void)
 {

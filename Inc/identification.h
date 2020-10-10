@@ -15,7 +15,7 @@
 struct identification_struct
 {
     anc_acquisition_t*  h_ancAcquisition;
-    uint16_t*   excitationSignal;
+    const uint16_t*     excitationSignal;
     uint32_t    done;
     uint32_t    stabilizingCycles;
     uint32_t    sumCycles;
@@ -23,7 +23,7 @@ struct identification_struct
     uint32_t    errMicSum[IDENTIFICATION_BFR_LENGTH];
 };
 
-typedef struct identification_struct identification_t;
+typedef volatile struct identification_struct identification_t;
 
 void identification_init(
     identification_t*   self,
@@ -41,6 +41,6 @@ void identification_start(identification_t* self);
 
 uint32_t identification_isDone(identification_t* self);
 
-__attribute__((weak)) void identification_onDoneCallback(uint32_t* refMicSum, uint32_t* errMicSum);
+__attribute__((weak)) void identification_onDoneCallback(volatile uint32_t* refMicSum, volatile uint32_t* errMicSum);
 
 #endif /* IDENTIFICATION_H_ */

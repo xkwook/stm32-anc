@@ -16,14 +16,16 @@
 
 #define DMA_MEM2MEM_READY        0x00
 
+//#define DMA_MEM2MEM_CAST_PTR(x)  ( (volatile void*) x)
+
 struct dma_mem2mem_struct
 {
     DMA_TypeDef*    DMAx;
     uint32_t        Stream;
-    void volatile    (*callback)(struct dma_mem2mem_struct*);
+    void            (*callback)(volatile struct dma_mem2mem_struct*);
 };
 
-typedef struct dma_mem2mem_struct dma_mem2mem_t;
+typedef volatile struct dma_mem2mem_struct dma_mem2mem_t;
 
 /* Private inline methods declaration */
 
@@ -41,13 +43,13 @@ void dma_mem2mem_init(
 
 void dma_mem2mem_setCallback(
     dma_mem2mem_t*  self,
-    void    (*callback)(struct dma_mem2mem_struct*)
+    void    (*callback)(dma_mem2mem_t*)
 );
 
 int dma_mem2mem_configure(
     dma_mem2mem_t*  self,
-    void*           dest,
-    void*           source,
+    volatile void*  dest,
+    volatile void*  source,
     uint32_t        length
 );
 
@@ -83,7 +85,7 @@ static inline void dma_mem2mem_dmaIrqHandler(dma_mem2mem_t* self)
 
 static inline uint32_t dma_mem2mem_IsActiveFlag_TC(dma_mem2mem_t* self)
 {
-    uint32_t retVal;
+    uint32_t retVal = 0;
     switch (self->Stream)
     {
     case LL_DMA_STREAM_0:

@@ -19,31 +19,31 @@
 
 struct fir_circular_decimate_struct
 {
-    q15_t*  coeffs_p;
-    q15_t*  oldDataIn_p;
-    q15_t*  dataIn_p;
+    volatile q15_t* coeffs_p;
+    volatile q15_t* oldDataIn_p;
+    volatile q15_t* dataIn_p;
     q15_t   stateBfr[FIR_CIRCULAR_DECIMATE_BFR_SIZE];
 };
 
-typedef struct fir_circular_decimate_struct fir_circular_decimate_t;
+typedef volatile struct fir_circular_decimate_struct fir_circular_decimate_t;
 
 /* Public methods declaration */
 
 void fir_circular_decimate_init(
     fir_circular_decimate_t*    self,
-    q15_t*                      coeffs_p,
-    q15_t*                      oldDataIn_p,
-    q15_t*                      dataIn_p
+    volatile q15_t*             coeffs_p,
+    volatile q15_t*             oldDataIn_p,
+    volatile q15_t*             dataIn_p
 );
 
 static inline q15_t fir_circular_decimate_calculate(
     fir_circular_decimate_t* self
 )
 {
-    q15_t* b0_p;
-    q15_t* b1_p;
-    q15_t* x0_p;
-    q15_t* x1_p;
+    volatile q15_t* b0_p;
+    volatile q15_t* b1_p;
+    volatile q15_t* x0_p;
+    volatile q15_t* x1_p;
     q15_t c0, c1;
     q15_t x0, x1;
     q63_t acc0, acc1, sum0;

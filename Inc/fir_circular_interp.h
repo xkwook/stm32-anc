@@ -17,20 +17,20 @@
 
 struct fir_circular_interp_struct
 {
-    q15_t*  coeffs_p;
-    q15_t*  oldDataIn_p;
+    volatile q15_t* coeffs_p;
+    volatile q15_t* oldDataIn_p;
     q15_t   dataIn;
     q15_t   stateBfr[FIR_CIRCULAR_INTERP_BFR_SIZE];
 };
 
-typedef struct fir_circular_interp_struct fir_circular_interp_t;
+typedef volatile struct fir_circular_interp_struct fir_circular_interp_t;
 
 /* Public methods declaration */
 
 void fir_circular_interp_init(
     fir_circular_interp_t*  self,
-    q15_t*                  coeffs_p,
-    q15_t*                  oldDataIn_p
+    volatile q15_t*         coeffs_p,
+    volatile q15_t*         oldDataIn_p
 );
 
 static inline void fir_circular_interp_pushData(
@@ -41,11 +41,11 @@ static inline void fir_circular_interp_pushData(
     self->dataIn = dataIn;
 }
 
-static inline q15_t* fir_circular_interp_getDataInPtr(
+static inline volatile q15_t* fir_circular_interp_getDataInPtr(
     fir_circular_interp_t*  self
 )
 {
-    return &(self->dataIn);
+    return (volatile q15_t*) &(self->dataIn);
 }
 
 static inline void fir_circular_interp_calculate(
@@ -53,9 +53,9 @@ static inline void fir_circular_interp_calculate(
     q15_t*                  dataOut_p
 )
 {
-    q15_t* x0_p;
-    q15_t* x1_p;
-    q15_t* c_p;
+    volatile q15_t* x0_p;
+    volatile q15_t* x1_p;
+    volatile q15_t* c_p;
     q15_t x0, x0_old, x0_new;
     q15_t c0, c1, c2, c3;
     q31_t acc0, acc1, acc2, acc3;

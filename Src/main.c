@@ -132,11 +132,6 @@ int main(void)
     &UartReceiver, &UartTransmitter,
     &DmaMem2Mem0, &DmaMem2Mem1);
 
-  uint16_t a = 2000;
-  uint16_t b = 50000;
-  uint16_t y = a - b;
-  SWO_LOG("%d - %d = %d", a, b, y);
-
   /* Start main application */
   anc_application_start();
   /* USER CODE END 2 */

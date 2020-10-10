@@ -13,11 +13,11 @@
 
 void iir3_circular_init(
     iir3_circular_t*    self,
-    q15_t*              b_coeffs_p,
-    q15_t*              a_coeffs_p,
+    volatile q15_t*     b_coeffs_p,
+    volatile q15_t*     a_coeffs_p,
     const q31_t         scaling_factor,
-    q15_t*              oldDataIn_p,
-    q15_t*              oldDataOut_p
+    volatile q15_t*     oldDataIn_p,
+    volatile q15_t*     oldDataOut_p
 )
 {
     self->b_coeffs_p     = b_coeffs_p;

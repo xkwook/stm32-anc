@@ -39,7 +39,7 @@ void dma_mem2mem_init(
 
 void dma_mem2mem_setCallback(
     dma_mem2mem_t*  self,
-    void    (*callback)(struct dma_mem2mem_struct*)
+    void    (*callback)(dma_mem2mem_t*)
 )
 {
     self->callback = callback;
@@ -47,8 +47,8 @@ void dma_mem2mem_setCallback(
 
 int dma_mem2mem_configure(
     dma_mem2mem_t*  self,
-    void*           dest,
-    void*           source,
+    volatile void*  dest,
+    volatile void*  source,
     uint32_t        length
 )
 {
@@ -81,7 +81,7 @@ int dma_mem2mem_test(
 {
     static const int N      = N_TEST;
     static const int shift  = 20;
-    static uint32_t  memory[N_TEST];
+    static volatile uint32_t  memory[N_TEST];
 
     int retCode = DMA_MEM2MEM_SUCCESS;
 

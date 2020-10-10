@@ -12,22 +12,22 @@
 
 struct fir_circular_struct
 {
-    q15_t*      coeffs_p;
-    q15_t*      oldDataIn_p;
-    q15_t       dataIn;
-    q15_t*      stateBfr_p;
-    uint32_t    length;
+    volatile q15_t* coeffs_p;
+    volatile q15_t* oldDataIn_p;
+    q15_t           dataIn;
+    volatile q15_t* stateBfr_p;
+    uint32_t        length;
 };
 
-typedef struct fir_circular_struct fir_circular_t;
+typedef volatile struct fir_circular_struct fir_circular_t;
 
 /* Public methods declaration */
 
 void fir_circular_init(
     fir_circular_t* self,
-    q15_t*          coeffs_p,
-    q15_t*          oldDataIn_p,
-    q15_t*          stateBfr_p,
+    volatile q15_t* coeffs_p,
+    volatile q15_t* oldDataIn_p,
+    volatile q15_t* stateBfr_p,
     uint32_t        length
 );
 
@@ -49,7 +49,7 @@ static inline void fir_circular_pushData(
     self->stateBfr_p[n - 2] = *(self->oldDataIn_p);
 }
 
-static inline q15_t* fir_circular_getDataInPtr(
+static inline volatile q15_t* fir_circular_getDataInPtr(
     fir_circular_t* self
 )
 {
@@ -60,10 +60,10 @@ static inline q15_t fir_circular_calculate(
     fir_circular_t* self
 )
 {
-    q15_t* x0_p;
-    q15_t* x1_p;
-    q15_t* c0_p;
-    q15_t* c1_p;
+    volatile q15_t* x0_p;
+    volatile q15_t* x1_p;
+    volatile q15_t* c0_p;
+    volatile q15_t* c1_p;
     q15_t  x0, x1;
     q15_t  c0, c1;
     q31_t  acc0, acc1, sum0;

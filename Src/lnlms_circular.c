@@ -13,10 +13,10 @@
 
 void lnlms_circular_init(
     lnlms_circular_t*   self,
-    q15_t*              coeffs_p,
+    volatile q15_t*     coeffs_p,
     q15_t               alpha,
     float               mu_f,
-    q15_t*              stateBfr_p,
+    volatile q15_t*     stateBfr_p,
     uint32_t            length
 )
 {
@@ -31,10 +31,13 @@ void lnlms_circular_init(
 }
 
 void lnlms_circular_initCoeffs(
-    q15_t*              coeffs_p,
+    volatile q15_t*     coeffs_p,
     uint32_t            length
 )
 {
     /* Init coeffs vector to zeros */
-    memset(coeffs_p, 0, length * sizeof(coeffs_p[0]));
+    for (int i = 0; i < length; i++)
+    {
+        coeffs_p[i] = 0;
+    }
 }

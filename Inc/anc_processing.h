@@ -27,7 +27,7 @@ extern const uint32_t anc_processing_inShiftTable[4];
 
 extern const uint32_t anc_processing_outShiftTable[4];
 
-typedef struct __attribute__((packed))
+typedef volatile struct __attribute__((packed))
 {
     q15_t   refSample;
     q15_t   errSample;
@@ -57,7 +57,7 @@ struct anc_processing_struct
     q15_t                   errIn[ANC_PROCESSING_CHUNK_SIZE];
 };
 
-typedef struct anc_processing_struct anc_processing_t;
+typedef volatile struct anc_processing_struct anc_processing_t;
 
 /* Public methods declaration */
 
@@ -77,14 +77,14 @@ __attribute__((weak)) void anc_processing_onErrorCallback(
 
 static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
     anc_processing_t*   self,
-    uint16_t*           refMicBfr,
-    uint16_t*           errMicBfr,
-    uint16_t*           outDacBfr
+    volatile uint16_t*  refMicBfr,
+    volatile uint16_t*  errMicBfr,
+    volatile uint16_t*  outDacBfr
 )
 {
     anc_processing_preprocessing_data_t samples;
-    q15_t*      refIn_p;
-    q15_t*      errIn_p;
+    volatile q15_t*      refIn_p;
+    volatile q15_t*      errIn_p;
     //anc_gain_t  refGain;
     //anc_gain_t  errGain;
     //uint32_t    refShift;
@@ -163,7 +163,7 @@ static inline void anc_processing_postprocessing(
     anc_processing_t*                   self,
     anc_processing_preprocessing_data_t inSamples,
     q15_t                               outSample,
-    uint16_t*                           outDacBfr
+    volatile uint16_t*                  outDacBfr
 )
 {
     q15_t       out[ANC_PROCESSING_CHUNK_SIZE];

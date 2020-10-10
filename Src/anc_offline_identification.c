@@ -72,7 +72,7 @@ static void algorithmInit(
     /* Init LNLMS algorithm */
     lnlms_circular_init(
         &(self0->lnlms),
-        anc_Wn_coeffs,
+        anc_Sn_coeffs,
         ANC_OFFLINE_ALPHA,
         ANC_OFFLINE_MU,
         self0->states.Sn_state,

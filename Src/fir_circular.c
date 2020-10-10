@@ -13,9 +13,9 @@
 
 void fir_circular_init(
     fir_circular_t* self,
-    q15_t*          coeffs_p,
-    q15_t*          oldDataIn_p,
-    q15_t*          stateBfr_p,
+    volatile q15_t* coeffs_p,
+    volatile q15_t* oldDataIn_p,
+    volatile q15_t* stateBfr_p,
     uint32_t        length
 )
 {
@@ -24,6 +24,9 @@ void fir_circular_init(
     self->stateBfr_p    = stateBfr_p;
     self->length        = length;
 
-    memset(self->stateBfr_p, 0, self->length * sizeof(self->stateBfr_p[0]));
+    for (int i = 0; i < length; i++)
+    {
+        self->stateBfr_p[i] = 0;
+    }
 }
 

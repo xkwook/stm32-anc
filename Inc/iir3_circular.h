@@ -11,29 +11,29 @@
 #include "anc_math.h"
 
 struct iir3_circular_struct {
-    q15_t*  b_coeffs_p;
-    q15_t*  a_coeffs_p;
-    q31_t   scaling_factor;
-    q15_t   x0;
-    q15_t   x1;
-    q15_t*  x2_p;
-    q15_t   x3;
-    q15_t   y0;
-    q15_t   y1;
-    q15_t*  y2_p;
+    volatile q15_t* b_coeffs_p;
+    volatile q15_t* a_coeffs_p;
+    q31_t           scaling_factor;
+    q15_t           x0;
+    q15_t           x1;
+    volatile q15_t* x2_p;
+    q15_t           x3;
+    q15_t           y0;
+    q15_t           y1;
+    volatile q15_t* y2_p;
 };
 
-typedef struct iir3_circular_struct iir3_circular_t;
+typedef volatile struct iir3_circular_struct iir3_circular_t;
 
 /* Public methods declaration */
 
 void iir3_circular_init(
     iir3_circular_t*    self,
-    q15_t*              b_coeffs_p,
-    q15_t*              a_coeffs_p,
+    volatile q15_t*     b_coeffs_p,
+    volatile q15_t*     a_coeffs_p,
     const q31_t         scaling_factor,
-    q15_t*              oldDataIn_p,
-    q15_t*              oldDataOut_p
+    volatile q15_t*     oldDataIn_p,
+    volatile q15_t*     oldDataOut_p
 );
 
 static inline void iir3_circular_pushData(
@@ -44,12 +44,12 @@ static inline void iir3_circular_pushData(
     self->x3 = dataIn;
 }
 
-static inline q15_t* iir3_circular_getDataInPtr(iir3_circular_t* self)
+static inline volatile q15_t* iir3_circular_getDataInPtr(iir3_circular_t* self)
 {
     return &(self->x3);
 }
 
-static inline q15_t* iir3_circular_getDataOutPtr(iir3_circular_t* self)
+static inline volatile q15_t* iir3_circular_getDataOutPtr(iir3_circular_t* self)
 {
     return &(self->y1);
 }
@@ -58,8 +58,8 @@ static inline q15_t iir3_circular_calculate(iir3_circular_t* self)
 {
     q15_t  x2   = *(self->x2_p);
     q15_t  y2   = *(self->y2_p);
-    q15_t* c0_p;
-    q15_t* c1_p;
+    volatile q15_t* c0_p;
+    volatile q15_t* c1_p;
     q15_t  c0, c1;
     q15_t  out;
     q63_t  acc0, acc1, sum0;

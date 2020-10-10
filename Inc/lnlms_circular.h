@@ -11,15 +11,15 @@
 #include "anc_math.h"
 
 struct lnlms_circular_struct {
-    q15_t*      coeffs_p;
-    q15_t       alpha;
-    float       mu_f;
-    q15_t*      stateBfr_p;
-    uint32_t    length;
-    q31_t       energy;
+    volatile q15_t* coeffs_p;
+    q15_t           alpha;
+    float           mu_f;
+    volatile q15_t* stateBfr_p;
+    uint32_t        length;
+    q31_t           energy;
 };
 
-typedef struct lnlms_circular_struct lnlms_circular_t;
+typedef volatile struct lnlms_circular_struct lnlms_circular_t;
 
 /* Private methods declaration */
 
@@ -29,15 +29,15 @@ static inline q15_t lnmls_weightingFactor(q31_t energy, q31_t error, float mu);
 
 void lnlms_circular_init(
     lnlms_circular_t*   self,
-    q15_t*              coeffs_p,
+    volatile q15_t*     coeffs_p,
     q15_t               alpha,
     float               mu_f,
-    q15_t*              stateBfr_p,
+    volatile q15_t*     stateBfr_p,
     uint32_t            length
 );
 
 void lnlms_circular_initCoeffs(
-    q15_t*              coeffs_p,
+    volatile q15_t*     coeffs_p,
     uint32_t            length
 );
 
@@ -46,10 +46,10 @@ static inline void lnlms_circular_update(
     q15_t               error
 )
 {
-    q15_t* x0_p;
-    q15_t* x1_p;
-    q15_t* c0_p;
-    q15_t* c1_p;
+    volatile q15_t* x0_p;
+    volatile q15_t* x1_p;
+    volatile q15_t* c0_p;
+    volatile q15_t* c1_p;
     q15_t  x0, x1;
     q31_t  c0, c1;
     q31_t  acc0, acc1;

@@ -49,6 +49,6 @@ typedef enum
     ANC_CMD_PERFORMANCE
 } anc_cmd_t;
 
-anc_cmd_t anc_cmd_decode(const char* const cmd, uint8_t** retCmdData);
+anc_cmd_t anc_cmd_decode(volatile char* cmd, uint8_t** retCmdData);
 
 #endif /* ANC_CMD_H_ */
