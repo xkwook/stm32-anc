@@ -27,6 +27,7 @@
 #include "uart_receiver.h"
 #include "uart_transmitter.h"
 #include "dma_mem2mem.h"
+#include "performance.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -238,7 +239,9 @@ void USART1_IRQHandler(void)
 void DMA2_Stream0_IRQHandler(void)
 {
   /* USER CODE BEGIN DMA2_Stream0_IRQn 0 */
+  performance_begin(&anc_acq_performance);
   anc_acquisition_dmaIrqHandler(&AncAcquisition);
+  performance_end(&anc_acq_performance);
   /* USER CODE END DMA2_Stream0_IRQn 0 */
   
   /* USER CODE BEGIN DMA2_Stream0_IRQn 1 */

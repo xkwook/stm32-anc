@@ -66,7 +66,7 @@ static inline q15_t fir_circular_calculate(
     volatile q15_t* c1_p;
     q15_t  x0, x1;
     q15_t  c0, c1;
-    q31_t  acc0, acc1, sum0;
+    q63_t  acc0, acc1, sum0;
     q15_t  result;
     uint32_t tapCnt;
     uint32_t secondHalfIdx;

@@ -24,19 +24,19 @@ typedef enum
 #define ANC_OFFLINE_IDENTIFICATION_CYCLES   (2000u * 60)
 
 /* ANC NLMS offline identification parameters */
-#define ANC_OFFLINE_MU                      1.0f
+#define ANC_OFFLINE_MU                      0.9f
 #define ANC_OFFLINE_ALPHA                   ((q15_t) ((1u << 15) - 1))
 
 /* ANC NLMS for FxLMS online adaptation */
-#define ANC_ONLINE_MU                       -0.1f
+#define ANC_ONLINE_MU                       -0.05f
 #define ANC_ONLINE_ALPHA                    ((q15_t) 32735)
 
 /* Secondary path filter */
-#define ANC_SN_FILTER_LENGTH                64
+#define ANC_SN_FILTER_LENGTH                128
 volatile q15_t anc_Sn_coeffs[ANC_SN_FILTER_LENGTH];
 
 /* Feed-forward control adaptive filter */
-#define ANC_WN_FILTER_LENGTH                64
+#define ANC_WN_FILTER_LENGTH                128
 volatile q15_t anc_Wn_coeffs[ANC_WN_FILTER_LENGTH];
 
 /* High-pass (20 Hz) IIR filter with notch (50 Hz) */

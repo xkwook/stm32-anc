@@ -25,6 +25,8 @@ struct performance_struct
 
 typedef volatile struct performance_struct performance_t;
 
+volatile performance_t anc_acq_performance;
+
 static inline void performance_start_timer(void)
 {
     LL_TIM_EnableCounter(PERFORMANCE_TIMER);

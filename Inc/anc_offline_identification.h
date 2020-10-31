@@ -92,6 +92,7 @@ static inline q15_t anc_offline_identification_calculate(
         error = (q31_t) samples.errSample - (q31_t) out;
 
         /* Temporary only */
+        //errFiltered = (q15_t) __SSAT(error, 16);
         errFiltered = out;
 
         /* Update Sn using LNLMS algorithm */

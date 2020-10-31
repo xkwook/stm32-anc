@@ -147,6 +147,13 @@ void anc_application_init(
     {
         SWO_LOG("DmaMem2Mem1 test failed!");
     }
+
+    performance_begin(&anc_acq_performance);
+    LL_mDelay(10);
+    performance_end(&anc_acq_performance);
+    SWO_LOG("10 ms delay for performance: %u",
+        performance_get_result(&anc_acq_performance)
+    );
 }
 
 void anc_application_start(void)
@@ -293,6 +300,9 @@ static inline void IdleStateHandle(anc_application_t* self)
                 ANC_OFFLINE_IDENTIFICATION_CYCLES
             );
 
+            /* Reset weights */
+            lnlms_circular_initCoeffs(anc_Sn_coeffs, ANC_SN_FILTER_LENGTH);
+
             //LL_mDelay(mDelay);
             anc_acquisition_start(self->h_ancAcquisition);
             self->state = ANC_APPLICATION_ACQUISITION;
@@ -347,9 +357,10 @@ static inline void AcquisitionStateHandle(anc_application_t* self)
             break;
 
         case ANC_CMD_PERFORMANCE:
-            SWO_LOG("Performance: %5u, %5u",
+            SWO_LOG("Performance: %5u, %5u, total: %5u",
                 performance_get_result(&self->performance[0]),
-                performance_get_result(&self->performance[1])
+                performance_get_result(&self->performance[1]),
+                performance_get_result(&anc_acq_performance)
             );
             break;
 
@@ -411,9 +422,10 @@ static inline void OfflineIdentificationStateHandle(anc_application_t* self)
             break;
 
         case ANC_CMD_PERFORMANCE:
-            SWO_LOG("Performance: %5u, %5u",
+            SWO_LOG("Performance: %5u, %5u, total: %5u",
                 performance_get_result(&self->performance[0]),
-                performance_get_result(&self->performance[1])
+                performance_get_result(&self->performance[1]),
+                performance_get_result(&anc_acq_performance)
             );
             break;
 
