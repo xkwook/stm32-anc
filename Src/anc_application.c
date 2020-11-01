@@ -38,9 +38,9 @@ struct anc_application_struct
     agc_t                           agc;
     anc_processing_logData_t        ancProcessingLogData;
     anc_processing_t                ancProcessing[2];
-    anc_algorithm_t                 ancAlgorithm[2];
+    anc_algorithm_t                 ancAlgorithm;
     performance_t                   performance[2];
-    anc_offline_identification_t    ancOfflineIdentification[2];
+    anc_offline_identification_t    ancOfflineIdentification;
     /* Private variables */
     anc_application_state_t                 state;
     anc_application_identificationState_t   identificationState;
@@ -118,12 +118,12 @@ void anc_application_init(
     );
 
     /* Init weigths for LNLMS algorithms */
-    lnlms_circular_initCoeffs(
+    lnlms_initCoeffs(
         anc_Sn_coeffs,
         ANC_SN_FILTER_LENGTH
     );
 
-    lnlms_circular_initCoeffs(
+    lnlms_initCoeffs(
         anc_Wn_coeffs,
         ANC_WN_FILTER_LENGTH
     );
@@ -232,10 +232,8 @@ static inline void IdleStateHandle(anc_application_t* self)
                 &self->ancProcessingLogData
             );
             anc_algorithm_init(
-                &self->ancAlgorithm[0],
-                &self->ancAlgorithm[1],
-                self->h_dmaMem2mem0,
-                self->h_dmaMem2mem1
+                &self->ancAlgorithm,
+                &anc_algorithm_states
             );
 
             anc_acquisition_start(self->h_ancAcquisition);
@@ -293,15 +291,13 @@ static inline void IdleStateHandle(anc_application_t* self)
                 &self->ancProcessingLogData
             );
             anc_offline_identification_init(
-                &self->ancOfflineIdentification[0],
-                &self->ancOfflineIdentification[1],
-                self->h_dmaMem2mem0,
-                self->h_dmaMem2mem1,
-                ANC_OFFLINE_IDENTIFICATION_CYCLES
+                &self->ancOfflineIdentification,
+                ANC_OFFLINE_IDENTIFICATION_CYCLES,
+                anc_algorithm_states.Sn_state
             );
 
             /* Reset weights */
-            lnlms_circular_initCoeffs(anc_Sn_coeffs, ANC_SN_FILTER_LENGTH);
+            lnlms_initCoeffs(anc_Sn_coeffs, ANC_SN_FILTER_LENGTH);
 
             //LL_mDelay(mDelay);
             anc_acquisition_start(self->h_ancAcquisition);
@@ -339,12 +335,10 @@ static inline void AcquisitionStateHandle(anc_application_t* self)
             self->state = ANC_APPLICATION_IDLE;
             break;
         case ANC_CMD_ANC_ON:
-            anc_algorithm_enable(&m_app.ancAlgorithm[0]);
-            anc_algorithm_enable(&m_app.ancAlgorithm[1]);
+            anc_algorithm_enable(&m_app.ancAlgorithm);
             break;
         case ANC_CMD_ANC_OFF:
-            anc_algorithm_disable(&m_app.ancAlgorithm[0]);
-            anc_algorithm_disable(&m_app.ancAlgorithm[1]);
+            anc_algorithm_disable(&m_app.ancAlgorithm);
             break;
         case ANC_CMD_AGC_ON:
             agc_enable(&m_app.agc);
@@ -520,7 +514,7 @@ void acquisition_bfr0_callback(
     );
 
     out = anc_algorithm_calculate(
-        &m_app.ancAlgorithm[0],
+        &m_app.ancAlgorithm,
         inputSamples
     );
 
@@ -553,7 +547,7 @@ void acquisition_bfr1_callback(
     );
 
     out = anc_algorithm_calculate(
-        &m_app.ancAlgorithm[1],
+        &m_app.ancAlgorithm,
         inputSamples
     );
 
@@ -586,7 +580,7 @@ void offline_identification_bfr0_callback(
     );
 
     out = anc_offline_identification_calculate(
-        &m_app.ancOfflineIdentification[0],
+        &m_app.ancOfflineIdentification,
         inputSamples
     );
 
@@ -621,7 +615,7 @@ void offline_identification_bfr1_callback(
     );
 
     out = anc_offline_identification_calculate(
-        &m_app.ancOfflineIdentification[1],
+        &m_app.ancOfflineIdentification,
         inputSamples
     );
 

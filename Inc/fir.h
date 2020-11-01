@@ -35,9 +35,6 @@ static inline void fir_pushData(
 {
     uint32_t n;
 
-    /* Set new data in variable */
-    self->dataIn        = dataIn;
-
     /* Load length */
     n = self->length;
 
@@ -161,7 +158,7 @@ static inline void fir_turn(
     x1_p = self->stateBfr_p + 1;
 
     /* Set tapCnt to blocks of 8 samples without last 7 sample block */
-    tapCnt = n >> 3u - 1;
+    tapCnt = (n >> 3u) - 1;
 
     /* Copy data blocks of 8 samples */
     while (tapCnt > 0u)

@@ -32,12 +32,24 @@ typedef enum
 #define ANC_ONLINE_ALPHA                    ((q15_t) 32735)
 
 /* Secondary path filter */
+//#define ANC_SN_FILTER_LENGTH                1264
 #define ANC_SN_FILTER_LENGTH                128
 volatile q15_t anc_Sn_coeffs[ANC_SN_FILTER_LENGTH];
 
 /* Feed-forward control adaptive filter */
+//#define ANC_WN_FILTER_LENGTH                1264
 #define ANC_WN_FILTER_LENGTH                128
 volatile q15_t anc_Wn_coeffs[ANC_WN_FILTER_LENGTH];
+
+/* ANC Algorithm filter states */
+typedef volatile struct __attribute__(( packed, aligned(sizeof(uint32_t)) ))
+{
+    q15_t   Sn_state    [ANC_SN_FILTER_LENGTH];
+    q15_t   SnOut_state [ANC_WN_FILTER_LENGTH];
+    q15_t   Wn_state    [ANC_WN_FILTER_LENGTH];
+} anc_algorithm_states_t;
+
+anc_algorithm_states_t anc_algorithm_states;
 
 /* High-pass (20 Hz) IIR filter with notch (50 Hz) */
 #define ANC_IIR_FILTER_ORDER                3

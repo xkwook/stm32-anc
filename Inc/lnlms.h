@@ -52,7 +52,7 @@ static inline void lnlms_update(
     volatile q15_t* c1_p;
     q15_t  x0, x1;
     q31_t  c0, c1;
-    q31_t  acc0, acc1;
+    q31_t  acc;
     q15_t  alpha;
     q31_t  energy;
     q15_t  w;
@@ -73,10 +73,10 @@ static inline void lnlms_update(
     x0 = self->stateBfr_p[n - 1];
 
     /* Calculate energy with new sample */
-    acc0 = x0 * x0;
+    acc = x0 * x0;
 
     /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    energy += (acc0 >> 15);
+    energy += (acc >> 15);
 
     /* Calculate weighting factor with the use of floats */
     w = lnmls_weightingFactor(energy, error, self->mu_f);
@@ -167,10 +167,10 @@ static inline void lnlms_update(
     x0 = self->stateBfr_p[0];
 
     /* Remove energy from old samples for future */
-    acc0 = x0 * x0;
+    acc = x0 * x0;
 
     /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    energy -= (acc0 >> 15);
+    energy -= (acc >> 15);
 
     /* Save energy */
     self->energy = energy;
