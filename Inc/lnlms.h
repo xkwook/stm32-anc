@@ -1,16 +1,16 @@
 /*
- * lnlms_circular.h
+ * lnlms.h
  *
- *  Created on: Sep 17, 2020
+ *  Created on: Nov 1, 2020
  *      Author: klukomski
  */
 
-#ifndef LNLMS_CIRCULAR_H_
-#define LNLMS_CIRCULAR_H_
+#ifndef LNLMS_H_
+#define LNLMS_H_
 
 #include "anc_math.h"
 
-struct lnlms_circular_struct {
+struct lnlms_struct {
     volatile q15_t* coeffs_p;
     q15_t           alpha;
     float           mu_f;
@@ -19,16 +19,16 @@ struct lnlms_circular_struct {
     q31_t           energy;
 };
 
-typedef volatile struct lnlms_circular_struct lnlms_circular_t;
+typedef volatile struct lnlms_struct lnlms_t;
 
 /* Private methods declaration */
 
-static inline q15_t lnmls_circular_weightingFactor(q31_t energy, q31_t error, float mu);
+static inline q15_t lnmls_weightingFactor(q31_t energy, q31_t error, float mu);
 
 /* Public methods declaration */
 
-void lnlms_circular_init(
-    lnlms_circular_t*   self,
+void lnlms_init(
+    lnlms_t*            self,
     volatile q15_t*     coeffs_p,
     q15_t               alpha,
     float               mu_f,
@@ -36,13 +36,13 @@ void lnlms_circular_init(
     uint32_t            length
 );
 
-void lnlms_circular_initCoeffs(
+void lnlms_initCoeffs(
     volatile q15_t*     coeffs_p,
     uint32_t            length
 );
 
-static inline void lnlms_circular_update(
-    lnlms_circular_t*   self,
+static inline void lnlms_update(
+    lnlms_t*            self,
     q15_t               error
 )
 {
@@ -69,19 +69,17 @@ static inline void lnlms_circular_update(
 
     secondHalfIdx = n >> 1u;
 
-    /* Load new states */
+    /* Load new state */
     x0 = self->stateBfr_p[n - 1];
-    x1 = self->stateBfr_p[n - 2];
 
-    /* Calculate energy with new samples */
+    /* Calculate energy with new sample */
     acc0 = x0 * x0;
-    acc1 = x1 * x1;
 
     /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    energy += ((acc0 + acc1) >> 15);
+    energy += (acc0 >> 15);
 
     /* Calculate weighting factor with the use of floats */
-    w = lnmls_circular_weightingFactor(energy, error, self->mu_f);
+    w = lnmls_weightingFactor(energy, error, self->mu_f);
 
     /* Init state pointers */
     x0_p = self->stateBfr_p + n - 1;
@@ -165,16 +163,14 @@ static inline void lnlms_circular_update(
         tapCnt--;
     }
 
-    /* Load states from end of buffer */
+    /* Load state from end of buffer */
     x0 = self->stateBfr_p[0];
-    x1 = self->stateBfr_p[1];
 
     /* Remove energy from old samples for future */
     acc0 = x0 * x0;
-    acc1 = x1 * x1;
 
     /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    energy -= ((acc0 + acc1) >> 15);
+    energy -= (acc0 >> 15);
 
     /* Save energy */
     self->energy = energy;
@@ -182,7 +178,7 @@ static inline void lnlms_circular_update(
 
 /* Private methods definition */
 
-static inline q15_t lnmls_circular_weightingFactor(q31_t energy, q31_t error, float mu)
+static inline q15_t lnmls_weightingFactor(q31_t energy, q31_t error, float mu)
 {
     static const float eps = 0.1 * (float) (1u << 15);
     float w_f;
@@ -201,4 +197,4 @@ static inline q15_t lnmls_circular_weightingFactor(q31_t energy, q31_t error, fl
     return w;
 }
 
-#endif /* LNLMS_CIRCULAR_H_ */
+#endif /* LNLMS_H_ */

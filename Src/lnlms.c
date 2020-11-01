@@ -1,18 +1,16 @@
 /*
- * lnlms_circular.c
+ * lnlms.c
  *
- *  Created on: Sep 17, 2020
+ *  Created on: Nov 1, 2020
  *      Author: klukomski
  */
 
-#include "lnlms_circular.h"
-
-#include <string.h>
+#include "lnlms.h"
 
 /* Public methods definition */
 
-void lnlms_circular_init(
-    lnlms_circular_t*   self,
+void lnlms_init(
+    lnlms_t*            self,
     volatile q15_t*     coeffs_p,
     q15_t               alpha,
     float               mu_f,
@@ -27,10 +25,10 @@ void lnlms_circular_init(
     self->length        = length;
 
     /* Zero energy for summing */
-    self->energy    = 0;
+    self->energy        = 0;
 }
 
-void lnlms_circular_initCoeffs(
+void lnlms_initCoeffs(
     volatile q15_t*     coeffs_p,
     uint32_t            length
 )
