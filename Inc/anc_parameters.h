@@ -33,12 +33,12 @@ typedef enum
 
 /* Secondary path filter */
 //#define ANC_SN_FILTER_LENGTH                1264
-#define ANC_SN_FILTER_LENGTH                128
+#define ANC_SN_FILTER_LENGTH                768
 volatile q15_t anc_Sn_coeffs[ANC_SN_FILTER_LENGTH];
 
 /* Feed-forward control adaptive filter */
 //#define ANC_WN_FILTER_LENGTH                1264
-#define ANC_WN_FILTER_LENGTH                128
+#define ANC_WN_FILTER_LENGTH                768
 volatile q15_t anc_Wn_coeffs[ANC_WN_FILTER_LENGTH];
 
 /* ANC Algorithm filter states */
