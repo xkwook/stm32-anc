@@ -6,7 +6,7 @@
 #include "lnlms_circular.h"
 #include "anc_parameters.h"
 
-#define DEBUG           0
+#define DEBUG           1
 
 #define TEST_NAME       "test_lnlms_circular"
 
@@ -18,8 +18,8 @@
 #define OUT_CHUNK       1
 #define MAX_MSE         0.001
 
-#define LNLMS_ALPHA     0.99
-#define LNLMS_MU        1.5
+#define LNLMS_ALPHA     32767.0/32768.0
+#define LNLMS_MU        0.01
 
 static fir_circular_t fir_ref[2];
 
@@ -62,7 +62,8 @@ int main(void)
 #if DEBUG
     for (int i = 0; i < ANC_FIR_FILTER_ORDER + 1; i++)
     {
-        printf("b%02d = %5d\n", i, wn_coeffs[i]);
+        printf("b%02d = %5d     b%02d_ref = %5d\n", i, wn_coeffs[i],
+            i, anc_fir_interp_coeffs[i]);
     }
 #endif
 
@@ -135,6 +136,8 @@ void coeffsError(void)
 {
     float mean_error;
 
+    mean_error = 0.0;
+
     for (int i = 0; i < ANC_FIR_FILTER_ORDER + 1; i++)
     {
         mean_error += fabs((double)(wn_coeffs[i] - anc_fir_interp_coeffs[i]));
@@ -169,7 +172,7 @@ void test_vector_handler_calculation_callback(
     out = fir_circular_calculate(h_fir);
     ref = fir_circular_calculate(h_fir_ref);
 
-    error = ref - out;
+    error = (q31_t)ref - (q31_t)out;
 
 #if DEBUG
     if (iteration < 5)

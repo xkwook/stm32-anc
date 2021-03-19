@@ -7,35 +7,47 @@
 
 #include "anc_parameters.h"
 
-const q15_t anc_iir_b_coeffs[ANC_IIR_FILTER_ORDER + 1] =
-{
-/*
-       10846,
-      -32271,
-       32271,
-      -10846
-*/
-       32513,
-      -32513,
-           0,
-           0
-};
+/* ANC NLMS offline identification parameters */
+volatile float anc_offline_mu     = ANC_OFFLINE_MU_DEFAULT;
+volatile float anc_offline_alpha  = ANC_OFFLINE_ALPHA_DEFAULT;
 
-const q15_t anc_iir_a_coeffs[ANC_IIR_FILTER_ORDER] =
+/* ANC NLMS for FxLMS online adaptation */
+volatile float anc_online_mu      = ANC_ONLINE_MU_DEFAULT;
+volatile float anc_online_alpha   = ANC_ONLINE_ALPHA_DEFAULT;
+
+/* High-pass (20 Hz) IIR filter */
+const q15_t anc_iir_hp_b_coeffs[ANC_IIR_FILTER_ORDER + 1] =
 {
-      -32257,
-           0,
-           0
-/*
+       16384,
       -32768,
-       31762,
-      -10340
-*/
+       16384
 };
 
-const q31_t anc_iir_scaling_factor =
-//       94499;
-       32768;
+const q15_t anc_iir_hp_a_coeffs[ANC_IIR_FILTER_ORDER] =
+{
+      -32736,
+       15672
+};
+
+const q31_t anc_iir_hp_scaling_factor =
+       62688;
+
+/* Notch (50 Hz) IIR filter */
+const q15_t anc_iir_notch_b_coeffs[ANC_IIR_FILTER_ORDER + 1] =
+{
+       16588,
+      -32768,
+       16588
+};
+
+const q15_t anc_iir_notch_a_coeffs[ANC_IIR_FILTER_ORDER] =
+{
+      -32768,
+       16328
+};
+
+const q31_t anc_iir_notch_scaling_factor =
+       63728;
 
 const q15_t anc_fir_decim_coeffs[ANC_FIR_FILTER_ORDER + 1] =
 {

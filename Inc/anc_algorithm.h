@@ -20,11 +20,13 @@
 
 struct anc_algorithm_struct
 {
-    fir_t       fir_Sn;
-    fir_t       fir_SnOut;
-    fir_t       fir_Wn;
-    lnlms_t     lnlms;
-    uint32_t    enable;
+    state_buffer_t  stateBfr_Sn;
+    state_buffer_t  stateBfr_SnOut;
+    state_buffer_t  stateBfr_Wn;
+    fir_t           fir_Sn;
+    fir_t           fir_Wn;
+    lnlms_t         lnlms;
+    uint32_t        enable;
 };
 
 typedef volatile struct anc_algorithm_struct anc_algorithm_t;
@@ -33,8 +35,9 @@ typedef volatile struct anc_algorithm_struct anc_algorithm_t;
 /* Public methods declaration */
 
 void anc_algorithm_init(
-    anc_algorithm_t*        self,
-    anc_algorithm_states_t* states_p
+    anc_algorithm_t*    self,
+    float               mu,
+    float               alpha
 );
 
 void anc_algorithm_enable(anc_algorithm_t* self);
@@ -52,29 +55,37 @@ static inline q15_t anc_algorithm_calculate(
     anc_processing_preprocessing_data_t samples
 )
 {
-    q15_t refSn;
+    float refSample, errSample;
+    float refSn;
+    float result_f;
     q15_t result;
 
     if (self->enable == ENABLED)
     {
+        /* Convert samples to float */
+        refSample = q15_to_float(samples.refSample);
+        errSample = q15_to_float(samples.errSample);
+
         /* Filter Ref with Sn Path */
-        fir_pushData(&(self->fir_Sn), samples.refSample);
+        state_buffer_pushData(&(self->stateBfr_Sn), refSample);
         refSn = fir_calculate(&(self->fir_Sn));
 
-        /* Append refSn as filter state (not using calculate from FIR filter) */
-        fir_pushData(&(self->fir_SnOut), refSn);
+        /* Append refSn to state buffer */
+        state_buffer_pushData(&(self->stateBfr_SnOut), refSn);
 
-        /* Update Wn using LNLMS algorithm */
-        lnlms_update(&(self->lnlms), (q31_t)samples.errSample);
+        /* Update Wn(n+1) using LNLMS algorithm */
+        lnlms_update(&(self->lnlms), errSample);
 
-        /* Filter Ref with Wn Path and calculate u */
-        fir_pushData(&(self->fir_Wn), samples.refSample);
-        result = fir_calculate(&(self->fir_Wn));
+        /* Filter Ref with Wn Path and calculate u(n+1) using w(n) */
+        state_buffer_pushData(&(self->stateBfr_Wn), refSample);
+        result_f = fir_calculate(&(self->fir_Wn));
+
+        result = float_to_q15(result_f);
 
         /* Shift all states */
-        fir_turn(&(self->fir_Sn));
-        fir_turn(&(self->fir_SnOut));
-        fir_turn(&(self->fir_Wn));
+        state_buffer_turn(&(self->stateBfr_Sn));
+        state_buffer_turn(&(self->stateBfr_SnOut));
+        state_buffer_turn(&(self->stateBfr_Wn));
     }
     else
     {

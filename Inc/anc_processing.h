@@ -9,14 +9,19 @@
 #define ANC_PROCESSING_H_
 
 #include "anc_math.h"
-
+#if defined(ANC_MATH_TESTING_IMPLEMENTATION)
+#else
 #include "anc_gain.h"
 #include "agc.h"
+#endif
 #include "fir_circular_decimate.h"
 #include "fir_circular_interp.h"
-#include "iir3_circular.h"
+#include "iir2_circular.h"
+#if defined(ANC_MATH_TESTING_IMPLEMENTATION)
+#else
 #include "uart_transmitter.h"
 #include "dma_mem2mem.h"
+#endif
 
 #define ANC_PROCESSING_CHUNK_SIZE    4
 #define ANC_PROCESSING_OFFSET        2048
@@ -45,13 +50,18 @@ typedef struct anc_processing_preprocessing_data_struct
 
 struct anc_processing_struct
 {
+#if defined(ANC_MATH_TESTING_IMPLEMENTATION)
+#else
     agc_t*                  h_agc;
     uart_transmitter_t*     h_uart_transmitter;
     anc_processing_logData_t*   logData_p;
+#endif
     fir_circular_decimate_t fir_decimate_ref;
     fir_circular_decimate_t fir_decimate_err;
-    iir3_circular_t         iir3_ref;
-    iir3_circular_t         iir3_err;
+    iir2_circular_t         iir2_hp_ref;
+    iir2_circular_t         iir2_notch_ref;
+    iir2_circular_t         iir2_hp_err;
+    iir2_circular_t         iir2_notch_err;
     fir_circular_interp_t   fir_interp;
     q15_t                   refIn[ANC_PROCESSING_CHUNK_SIZE];
     q15_t                   errIn[ANC_PROCESSING_CHUNK_SIZE];
@@ -63,10 +73,14 @@ typedef volatile struct anc_processing_struct anc_processing_t;
 
 void anc_processing_init(
     anc_processing_t*           self0,
+#if defined(ANC_MATH_TESTING_IMPLEMENTATION)
+    anc_processing_t*           self1
+#else
     anc_processing_t*           self1,
     agc_t*                      h_agc,
     uart_transmitter_t*         h_uart_transmitter,
     anc_processing_logData_t*   logData_p
+#endif
 );
 
 __attribute__((weak)) void anc_processing_onErrorCallback(
@@ -74,6 +88,33 @@ __attribute__((weak)) void anc_processing_onErrorCallback(
 );
 
 /* Inline methods */
+
+static inline anc_processing_preprocessing_data_t anc_processing_preprocessing_filtering(
+    anc_processing_t*   self
+)
+{
+    anc_processing_preprocessing_data_t samples;
+
+    /* FIR and decimate */
+    samples.refSample = fir_circular_decimate_calculate(&self->fir_decimate_ref);
+    samples.errSample = fir_circular_decimate_calculate(&self->fir_decimate_err);
+
+    /* Perform IIR high pass on input data */
+    iir2_circular_pushData(&self->iir2_hp_ref, samples.refSample);
+    iir2_circular_pushData(&self->iir2_hp_err, samples.errSample);
+    samples.refSample = iir2_circular_calculate(&self->iir2_hp_ref);
+    samples.errSample = iir2_circular_calculate(&self->iir2_hp_err);
+
+    /* Perform IIR notch filter on input data */
+    /*
+    iir2_circular_pushData(&self->iir2_notch_ref, samples.refSample);
+    iir2_circular_pushData(&self->iir2_notch_err, samples.errSample);
+    samples.refSample = iir2_circular_calculate(&self->iir2_notch_ref);
+    samples.errSample = iir2_circular_calculate(&self->iir2_notch_err);
+    */
+
+    return samples;
+}
 
 static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
     anc_processing_t*   self,
@@ -150,13 +191,33 @@ static inline anc_processing_preprocessing_data_t anc_processing_preprocessing(
     samples.refSample = fir_circular_decimate_calculate(&self->fir_decimate_ref);
     samples.errSample = fir_circular_decimate_calculate(&self->fir_decimate_err);
 
-    /* Perform IIR3 on input data */
-    iir3_circular_pushData(&self->iir3_ref, samples.refSample);
-    iir3_circular_pushData(&self->iir3_err, samples.errSample);
-    samples.refSample = iir3_circular_calculate(&self->iir3_ref);
-    samples.errSample = iir3_circular_calculate(&self->iir3_err);
+    /* Perform IIR high pass on input data */
+    iir2_circular_pushData(&self->iir2_hp_ref, samples.refSample);
+    iir2_circular_pushData(&self->iir2_hp_err, samples.errSample);
+    samples.refSample = iir2_circular_calculate(&self->iir2_hp_ref);
+    samples.errSample = iir2_circular_calculate(&self->iir2_hp_err);
+
+    /* Perform IIR notch filter on input data */
+    /*
+    iir2_circular_pushData(&self->iir2_notch_ref, samples.refSample);
+    iir2_circular_pushData(&self->iir2_notch_err, samples.errSample);
+    samples.refSample = iir2_circular_calculate(&self->iir2_notch_ref);
+    samples.errSample = iir2_circular_calculate(&self->iir2_notch_err);
+    */
 
     return samples;
+}
+
+static inline void anc_processing_postprocessing_filtering(
+    anc_processing_t*                   self,
+    anc_processing_preprocessing_data_t inSamples,
+    q15_t                               outSample,
+    q15_t*                              outBfr
+)
+{
+    /* Interpolate u with FIR */
+    fir_circular_interp_pushData(&self->fir_interp, outSample);
+    fir_circular_interp_calculate(&self->fir_interp, outBfr);
 }
 
 static inline void anc_processing_postprocessing(
@@ -199,7 +260,8 @@ static inline void anc_processing_postprocessing(
     *outDacBfr++ = (*out_p++ >> 4) + ANC_PROCESSING_OFFSET;
     *outDacBfr++ = (*out_p++ >> 4) + ANC_PROCESSING_OFFSET;
     *outDacBfr   = (*out_p   >> 4) + ANC_PROCESSING_OFFSET;
-
+#if defined(ANC_MATH_TESTING_IMPLEMENTATION)
+#else
     if (uart_transmitter_isBusy(self->h_uart_transmitter))
     {
         anc_processing_onErrorCallback(self);
@@ -212,6 +274,7 @@ static inline void anc_processing_postprocessing(
 
         uart_transmitter_start(self->h_uart_transmitter);
     }
+#endif
 }
 
 #endif /* ANC_PROCESSING_H_ */

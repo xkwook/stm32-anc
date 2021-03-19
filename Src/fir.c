@@ -11,17 +11,10 @@
 
 void fir_init(
     fir_t*          self,
-    volatile q15_t* coeffs_p,
-    volatile q15_t* stateBfr_p,
-    uint32_t        length
+    state_buffer_t* stateBfr,
+    volatile float* coeffs_p
 )
 {
-    self->coeffs_p      = coeffs_p;
-    self->stateBfr_p    = stateBfr_p;
-    self->length        = length;
-
-    for (int i = 0; i < length; i++)
-    {
-        self->stateBfr_p[i] = 0;
-    }
+    self->coeffs_p  = coeffs_p;
+    self->stateBfr  = stateBfr;
 }

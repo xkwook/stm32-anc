@@ -9,190 +9,123 @@
 #define LNLMS_H_
 
 #include "anc_math.h"
+#include "state_buffer.h"
+#include <stdio.h>
 
 struct lnlms_struct {
-    volatile q15_t* coeffs_p;
-    q15_t           alpha;
-    float           mu_f;
-    volatile q15_t* stateBfr_p;
-    uint32_t        length;
-    q31_t           energy;
+    state_buffer_t* stateBfr;
+    volatile float* coeffs_p;
+    float           alpha;
+    float           mu;
+    float           energy;
 };
 
 typedef volatile struct lnlms_struct lnlms_t;
 
 /* Private methods declaration */
 
-static inline q15_t lnmls_weightingFactor(q31_t energy, q31_t error, float mu);
+static inline float lnmls_weightingFactor(float energy, float error, float mu);
 
 /* Public methods declaration */
 
 void lnlms_init(
-    lnlms_t*            self,
-    volatile q15_t*     coeffs_p,
-    q15_t               alpha,
-    float               mu_f,
-    volatile q15_t*     stateBfr_p,
-    uint32_t            length
+    lnlms_t*        self,
+    state_buffer_t* stateBfr,
+    volatile float* coeffs_p,
+    float           alpha,
+    float           mu
 );
 
 void lnlms_initCoeffs(
-    volatile q15_t*     coeffs_p,
+    volatile float*     coeffs_p,
     uint32_t            length
 );
 
 static inline void lnlms_update(
     lnlms_t*            self,
-    q15_t               error
+    float               error
 )
 {
-    volatile q15_t* x0_p;
-    volatile q15_t* x1_p;
-    volatile q15_t* c0_p;
-    volatile q15_t* c1_p;
-    q15_t  x0, x1;
-    q31_t  c0, c1;
-    q31_t  acc;
-    q15_t  alpha;
-    q31_t  energy;
-    q15_t  w;
-    uint32_t tapCnt;
-    uint32_t secondHalfIdx;
-    uint32_t n;
+    volatile float* c_p;
+    float x;
+    float c;
+    float w;
+    float alpha;
+    float mu;
+    float energy;
+    const float energy_leak = 0.999999;
+    state_buffer_chunk_t chunk;
 
-    /* Load length */
-    n = self->length;
-    /* Load energy */
-    energy = self->energy;
-    /* Load alpha */
-    alpha = self->alpha;
+    /* Load alpha, mu and energy */
+    alpha   = self->alpha;
+    mu      = self->mu;
+    energy  = self->energy;
 
-    secondHalfIdx = n >> 1u;
+    /* Init coeffs pointer */
+    c_p     = self->coeffs_p;
 
-    /* Load new state */
-    x0 = self->stateBfr_p[n - 1];
+    /* Load first chunk */
+    chunk = state_buffer_firstChunk(self->stateBfr);
 
-    /* Calculate energy with new sample */
-    acc = x0 * x0;
+    /* Load newest sample */
+    x = *chunk.ptr;
 
-    /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    energy += (acc >> 15);
+    /* Add newest sample to energy */
+    energy  += x * x;
 
-    /* Calculate weighting factor with the use of floats */
-    w = lnmls_weightingFactor(energy, error, self->mu_f);
+    /* Calculate weighting factor */
 
-    /* Init state pointers */
-    x0_p = self->stateBfr_p + n - 1;
-    x1_p = self->stateBfr_p + secondHalfIdx - 1;
+    w = lnmls_weightingFactor(energy, error, mu);
 
-    /* Init coeffs pointers */
-    c0_p = self->coeffs_p;
-    c1_p = self->coeffs_p + secondHalfIdx;
-
-    /* Set tapCnt to blocks of 8 samples */
-    tapCnt = n >> 3u;
-
-    /* Process blocks of 8 samples */
-    while (tapCnt > 0u)
+    while (chunk.length)
     {
-        /* Load state variables */
-        x0 = *x0_p--;
-        x1 = *x1_p--;
+        /* Load state variable */
+        x = *chunk.ptr--;
 
-        /* Multiply by leakage factor */
-        c0 = alpha * (*c0_p);
-        c1 = alpha * (*c1_p);
+        /* Load coeff */
+        c = *c_p;
 
-        /* Perform multiply-accumulate */
-        c0 += w * x0;
-        c1 += w * x1;
+        /* Update coeff according to Leaky-LMS equation */
+        *c_p++ = alpha * c + w * x;
 
-        /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-        *c0_p++ = (q15_t) __SSAT((c0 >> 15), 16);
-        *c1_p++ = (q15_t) __SSAT((c1 >> 15), 16);
-
-        /* Load state variables */
-        x0 = *x0_p--;
-        x1 = *x1_p--;
-
-        /* Multiply by leakage factor */
-        c0 = alpha * (*c0_p);
-        c1 = alpha * (*c1_p);
-
-        /* Perform multiply-accumulate */
-        c0 += w * x0;
-        c1 += w * x1;
-
-        /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-        *c0_p++ = (q15_t) __SSAT((c0 >> 15), 16);
-        *c1_p++ = (q15_t) __SSAT((c1 >> 15), 16);
-
-        /* Load state variables */
-        x0 = *x0_p--;
-        x1 = *x1_p--;
-
-        /* Multiply by leakage factor */
-        c0 = alpha * (*c0_p);
-        c1 = alpha * (*c1_p);
-
-        /* Perform multiply-accumulate */
-        c0 += w * x0;
-        c1 += w * x1;
-
-        /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-        *c0_p++ = (q15_t) __SSAT((c0 >> 15), 16);
-        *c1_p++ = (q15_t) __SSAT((c1 >> 15), 16);
-
-            /* Load state variables */
-        x0 = *x0_p--;
-        x1 = *x1_p--;
-
-        /* Multiply by leakage factor */
-        c0 = alpha * (*c0_p);
-        c1 = alpha * (*c1_p);
-
-        /* Perform multiply-accumulate */
-        c0 += w * x0;
-        c1 += w * x1;
-
-        /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-        *c0_p++ = (q15_t) __SSAT((c0 >> 15), 16);
-        *c1_p++ = (q15_t) __SSAT((c1 >> 15), 16);
-
-        /* Decrement tapCnt */
-        tapCnt--;
+        /* Decrement loop counter */
+        chunk.length--;
     }
 
-    /* Load state from end of buffer */
-    x0 = self->stateBfr_p[0];
+    /* Load second chunk */
+    chunk = state_buffer_secondChunk(self->stateBfr);
 
-    /* Remove energy from old samples for future */
-    acc = x0 * x0;
+    while (chunk.length)
+    {
+        /* Load state variable */
+        x = *chunk.ptr--;
 
-    /* Results are stored as 2.14 format, so downscale by 15 to get output in 1.15 */
-    energy -= (acc >> 15);
+        /* Load coeff */
+        c = *c_p;
+
+        /* Update coeff according to Leaky-LMS equation */
+        *c_p++ = alpha * c + w * x;
+
+        /* Decrement loop counter */
+        chunk.length--;
+    }
+
+    /* Remove latest loaded sample from energy */
+    energy -= x * x;
 
     /* Save energy */
+    //self->energy = energy_leak * energy;
     self->energy = energy;
 }
 
 /* Private methods definition */
 
-static inline q15_t lnmls_weightingFactor(q31_t energy, q31_t error, float mu)
+static inline float lnmls_weightingFactor(float energy, float error, float mu)
 {
-    static const float eps = 0.1 * (float) (1u << 15);
-    float w_f;
-    q15_t w;
-    q31_t w_q31;
+    static const float eps = 0.1;
+    float w;
 
-    /* Calculated result in float is in <-1; 1> format */
-    w_f = ((float) error * mu) / ((float) energy + eps);
-
-    /* Convert weighting factor to 1.15 format */
-    w_q31 = (q31_t) (w_f * (float) (1u << 15));
-
-    /* Saturate q31 weighting factor */
-    w = (q15_t) (__SSAT(w_q31, 16));
+    w = mu * error / (energy + eps);
 
     return w;
 }

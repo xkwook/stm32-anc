@@ -43,7 +43,7 @@ void lnlms_circular_initCoeffs(
 
 static inline void lnlms_circular_update(
     lnlms_circular_t*   self,
-    q15_t               error
+    q31_t               error
 )
 {
     volatile q15_t* x0_p;

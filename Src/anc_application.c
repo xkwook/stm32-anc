@@ -58,6 +58,7 @@ static inline void IdentificationStateHandle(anc_application_t* self);
 static inline void OfflineIdentificationStateHandle(anc_application_t* self);
 
 void SetGains(uint8_t* cmdData);
+void PrintCoeffs(volatile float* coeffs_p, uint32_t length);
 
 /* Callbacks for anc_acquisition module */
 
@@ -233,8 +234,12 @@ static inline void IdleStateHandle(anc_application_t* self)
             );
             anc_algorithm_init(
                 &self->ancAlgorithm,
-                &anc_algorithm_states
+                anc_online_mu,
+                anc_online_alpha
             );
+
+            /* Reset weights */
+            lnlms_initCoeffs(anc_Wn_coeffs, ANC_WN_FILTER_LENGTH);
 
             anc_acquisition_start(self->h_ancAcquisition);
             self->state = ANC_APPLICATION_ACQUISITION;
@@ -293,7 +298,8 @@ static inline void IdleStateHandle(anc_application_t* self)
             anc_offline_identification_init(
                 &self->ancOfflineIdentification,
                 ANC_OFFLINE_IDENTIFICATION_CYCLES,
-                anc_algorithm_states.Sn_state
+                anc_offline_mu,
+                anc_offline_alpha
             );
 
             /* Reset weights */
@@ -301,11 +307,26 @@ static inline void IdleStateHandle(anc_application_t* self)
 
             //LL_mDelay(mDelay);
             anc_acquisition_start(self->h_ancAcquisition);
-            self->state = ANC_APPLICATION_ACQUISITION;
+            self->state = ANC_APPLICATION_OFFLINE_IDENTIFICATION;
             break;
-        case ANC_CMD_SET_OFFLINE_LMS_MI:
+        case ANC_CMD_SET_OFFLINE_LMS_PARAMS:
+            anc_offline_mu      = ((float*)cmdData)[0];
+            anc_offline_alpha   = ((float*)cmdData)[1];
+            SWO_LOG("Updated offline parameters mu = %f, alpha = %f",
+                anc_offline_mu, anc_offline_alpha);
             break;
-        case ANC_CMD_SET_ANC_LMS_MI:
+        case ANC_CMD_SET_ANC_LMS_PARAMS:
+            anc_online_mu       = -((float*)cmdData)[0];
+            anc_online_alpha    = ((float*)cmdData)[1];
+            SWO_LOG("Updated online ANC parameters mu = %f, alpha = %f",
+                -anc_online_mu, anc_online_alpha);
+            break;
+
+        case ANC_CMD_COEFFS:
+            //SWO_LOG("Sn coeffs:");
+            //PrintCoeffs(anc_Sn_coeffs, ANC_SN_FILTER_LENGTH);
+            SWO_LOG("Sn coeffs:");
+            PrintCoeffs(anc_Sn_coeffs, ANC_SN_FILTER_LENGTH);
             break;
 
         default:
@@ -338,6 +359,8 @@ static inline void AcquisitionStateHandle(anc_application_t* self)
             anc_algorithm_enable(&m_app.ancAlgorithm);
             break;
         case ANC_CMD_ANC_OFF:
+            /* Reset weights */
+            lnlms_initCoeffs(anc_Wn_coeffs, ANC_WN_FILTER_LENGTH);
             anc_algorithm_disable(&m_app.ancAlgorithm);
             break;
         case ANC_CMD_AGC_ON:
@@ -348,6 +371,10 @@ static inline void AcquisitionStateHandle(anc_application_t* self)
             break;
         case ANC_CMD_SET_GAINS:
             SetGains(cmdData);
+            break;
+        case ANC_CMD_COEFFS:
+            SWO_LOG("Wn coeffs:");
+            PrintCoeffs(anc_Wn_coeffs, ANC_WN_FILTER_LENGTH);
             break;
 
         case ANC_CMD_PERFORMANCE:
@@ -422,6 +449,10 @@ static inline void OfflineIdentificationStateHandle(anc_application_t* self)
                 performance_get_result(&anc_acq_performance)
             );
             break;
+        case ANC_CMD_COEFFS:
+            SWO_LOG("Sn coeffs:");
+            PrintCoeffs(anc_Sn_coeffs, ANC_SN_FILTER_LENGTH);
+            break;
 
         default:
             SWO_LOG("Unsupported command.");
@@ -490,6 +521,23 @@ void SetGains(uint8_t* cmdData)
         default:
         SWO_LOG("Wrong Out gain!");
         break;
+    }
+}
+
+void PrintCoeffs(volatile float* coeffs_p, uint32_t length)
+{
+    for (int i = 0; i < length / 8; i++)
+    {
+        SWO_LOG("% 8.5f % 8.5f % 8.5f % 8.5f % 8.5f % 8.5f % 8.5f % 8.5f",
+            coeffs_p[8*i + 0],
+            coeffs_p[8*i + 1],
+            coeffs_p[8*i + 2],
+            coeffs_p[8*i + 3],
+            coeffs_p[8*i + 4],
+            coeffs_p[8*i + 5],
+            coeffs_p[8*i + 6],
+            coeffs_p[8*i + 7]
+        );
     }
 }
 
@@ -669,15 +717,7 @@ void anc_offline_identification_onEndCallback(
     anc_acquisition_stop(m_app.h_ancAcquisition);
 
     SWO_LOG("Identified Sn coeffs:");
-    for (int i = 0; i < ANC_SN_FILTER_LENGTH / 4; i++)
-    {
-        SWO_LOG("c%03d = %5d c%03d = %5d c%03d = %5d c%03d = %5d",
-            4*i + 0, anc_Sn_coeffs[4*i + 0],
-            4*i + 1, anc_Sn_coeffs[4*i + 1],
-            4*i + 2, anc_Sn_coeffs[4*i + 2],
-            4*i + 3, anc_Sn_coeffs[4*i + 3]
-        );
-    }
+    PrintCoeffs(anc_Sn_coeffs, ANC_SN_FILTER_LENGTH);
 
     m_app.state = ANC_APPLICATION_IDLE;
 }

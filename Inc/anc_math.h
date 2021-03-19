@@ -66,4 +66,16 @@ static inline q31_t __SSAT(
   }
 #endif /* end of ANC_MATH_TESTING_IMPLEMENTATION */
 
+static inline float q15_to_float(q15_t value)
+{
+    return ((float) value * (1.0 / 32768.0));
+}
+
+static inline q15_t float_to_q15(float value)
+{
+    q31_t val_q31 = (q31_t) (value * 32768.0);
+
+    return (q15_t) (__SSAT(val_q31, 16));
+}
+
 #endif /* ANC_MATH_H_ */

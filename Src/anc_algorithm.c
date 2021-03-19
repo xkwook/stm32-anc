@@ -10,42 +10,52 @@
 /* Public methods definition */
 
 void anc_algorithm_init(
-    anc_algorithm_t*        self,
-    anc_algorithm_states_t* states_p
+    anc_algorithm_t*    self,
+    float               mu,
+    float               alpha
 )
 {
     self->enable    = DISABLED;
 
-    /* Init filters */
-    fir_init(
-        &(self->fir_Sn),
-        anc_Sn_coeffs,
-        states_p->Sn_state,
+    /* Init state buffers */
+    state_buffer_init(
+        &(self->stateBfr_Sn),
+        anc_Sn_bfr,
         ANC_SN_FILTER_LENGTH
     );
 
-    fir_init(
-        &(self->fir_SnOut),
-        NULL,
-        states_p->SnOut_state,
+    state_buffer_init(
+        &(self->stateBfr_SnOut),
+        anc_SnOut_bfr,
         ANC_WN_FILTER_LENGTH
+    );
+
+    state_buffer_init(
+        &(self->stateBfr_Wn),
+        anc_Wn_bfr,
+        ANC_WN_FILTER_LENGTH
+    );
+
+    /* Init filters */
+    fir_init(
+        &(self->fir_Sn),
+        &(self->stateBfr_Sn),
+        anc_Sn_coeffs
     );
 
     fir_init(
         &(self->fir_Wn),
-        anc_Wn_coeffs,
-        states_p->Wn_state,
-        ANC_WN_FILTER_LENGTH
+        &(self->stateBfr_Wn),
+        anc_Wn_coeffs
     );
 
     /* Init LNLMS algorithm */
     lnlms_init(
         &(self->lnlms),
+        &(self->stateBfr_SnOut),
         anc_Wn_coeffs,
-        ANC_ONLINE_ALPHA,
-        ANC_ONLINE_MU,
-        states_p->SnOut_state,
-        ANC_WN_FILTER_LENGTH
+        mu,
+        alpha
     );
 }
 

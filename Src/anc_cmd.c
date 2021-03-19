@@ -24,9 +24,10 @@
 #define IDENTIFICATION_GET_ERR_STR  "identification-get=err"
 #define IDENTIFICATION_STR          "identification"
 #define OFFLINE_IDENTIFICATION_STR  "offline-identification"
-#define SET_OFFLINE_LMS_MI_STR      "set-offline-lms-mu"
-#define SET_ANC_LMS_MI_STR          "set-anc-lms-mu"
+#define SET_OFFLINE_LMS_PARAMS_STR  "set-offline-lms-params"
+#define SET_ANC_LMS_PARAMS_STR      "set-anc-lms-params"
 #define PERFORMANCE_STR             "performance"
+#define COEFFS_STR                  "coeffs"
 
 #define CMD_BFR_MAXLEN              128
 
@@ -40,8 +41,25 @@
         }                                           \
     } while(0);                                     \
 
+typedef enum
+{
+    INTEGER,
+    FLOAT
+} number_type_t;
 
-static int decodeIntegers(const char* cmd, int32_t* decodedData, const uint32_t maxNum);
+
+static int decodeNumbers(
+    const char*     cmd,
+    void*           decodedData,
+    const uint32_t  maxNum,
+    number_type_t   number_type
+);
+
+static int decodeFloats(
+    char*           cmd,
+    void*           decodedData,
+    const uint32_t  maxNum
+);
 
 anc_cmd_t anc_cmd_decode(volatile char* cmd, uint8_t** retCmdData)
 {
@@ -75,7 +93,8 @@ anc_cmd_t anc_cmd_decode(volatile char* cmd, uint8_t** retCmdData)
     /* Set gains cmd */
     if (strncmp(cmdBfr, SET_GAINS_STR, strlen(SET_GAINS_STR)) == 0)
     {
-        uint32_t num = decodeIntegers(cmdBfr, (int32_t*)cmdData, 128 / sizeof(int32_t));
+        uint32_t num = decodeNumbers(cmdBfr, cmdData, 128 / sizeof(int32_t),
+            INTEGER);
 
         if (num < 3)
         {
@@ -99,12 +118,45 @@ anc_cmd_t anc_cmd_decode(volatile char* cmd, uint8_t** retCmdData)
             ANC_CMD_OFFLINE_IDENTIFICATION);
     ADD_CMD(PERFORMANCE_STR,
             ANC_CMD_PERFORMANCE);
-    /* Set mi commands */
+    ADD_CMD(COEFFS_STR,
+            ANC_CMD_COEFFS);
+    /* Set mu and alpha commands */
+    if (strncmp(cmdBfr, SET_OFFLINE_LMS_PARAMS_STR, strlen(SET_OFFLINE_LMS_PARAMS_STR)) == 0)
+    {
+        uint32_t num = decodeFloats(cmdBfr, cmdData, 128 / sizeof(float));
+
+        if (num < 2)
+        {
+            return ANC_CMD_WRONG_CMD;
+        }
+
+        *retCmdData = cmdData;
+
+        return ANC_CMD_SET_OFFLINE_LMS_PARAMS;
+    }
+    if (strncmp(cmdBfr, SET_ANC_LMS_PARAMS_STR, strlen(SET_ANC_LMS_PARAMS_STR)) == 0)
+    {
+        uint32_t num = decodeFloats(cmdBfr, cmdData, 128 / sizeof(float));
+
+        if (num < 2)
+        {
+            return ANC_CMD_WRONG_CMD;
+        }
+
+        *retCmdData = cmdData;
+
+        return ANC_CMD_SET_ANC_LMS_PARAMS;
+    }
 
     return ANC_CMD_WRONG_CMD;
 }
 
-static int decodeIntegers(const char* cmd, int32_t* decodedData, const uint32_t maxNum)
+static int decodeNumbers(
+    const char*     cmd,
+    void*           decodedData,
+    const uint32_t  maxNum,
+    number_type_t   number_type
+)
 {
     const char delim[2] = ",";
     char* token;
@@ -119,14 +171,47 @@ static int decodeIntegers(const char* cmd, int32_t* decodedData, const uint32_t 
 
     /* walk through other tokens */
     while( token != NULL ) {
-        decodedData[num]
-            = (int32_t)strtol(token, (char**)NULL, 10);
+        switch(number_type)
+        {
+        case INTEGER:
+            ((int32_t*)decodedData)[num]
+                = (int32_t)strtol(token, (char**)NULL, 10);
+            break;
+        case FLOAT:
+            ((float*)decodedData)[num]
+                = strtof(token, (char**)NULL);
+            break;
+        default:
+            break;
+        }
         num++;
         if (num == maxNum)
         {
             break;
         }
         token = strtok(NULL, delim);
+    }
+
+    return num;
+}
+
+static int decodeFloats(
+    char*           cmd,
+    void*           decodedData,
+    const uint32_t  maxNum
+)
+{
+    char *end;
+    uint32_t num = 0;
+
+    cmd = strchr(cmd, '=') + 1;
+
+    for (float f = strtof(cmd, &end); cmd != end; f = strtof(cmd, &end))
+    {
+        ((float*)decodedData)[num] = f;
+        cmd = end;
+        cmd = strchr(cmd, ',') + 1;
+        num++;
     }
 
     return num;

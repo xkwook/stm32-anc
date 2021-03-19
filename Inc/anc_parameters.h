@@ -24,38 +24,42 @@ typedef enum
 #define ANC_OFFLINE_IDENTIFICATION_CYCLES   (2000u * 60)
 
 /* ANC NLMS offline identification parameters */
-#define ANC_OFFLINE_MU                      0.9f
-#define ANC_OFFLINE_ALPHA                   ((q15_t) ((1u << 15) - 1))
+#define ANC_OFFLINE_MU_DEFAULT              0.01f
+#define ANC_OFFLINE_ALPHA_DEFAULT           1.0f
+extern volatile float anc_offline_mu;
+extern volatile float anc_offline_alpha;
 
 /* ANC NLMS for FxLMS online adaptation */
-#define ANC_ONLINE_MU                       -0.05f
-#define ANC_ONLINE_ALPHA                    ((q15_t) 32735)
+#define ANC_ONLINE_MU_DEFAULT               -0.0001f
+#define ANC_ONLINE_ALPHA_DEFAULT            0.999999f
+extern volatile float anc_online_mu;
+extern volatile float anc_online_alpha;
 
 /* Secondary path filter */
 //#define ANC_SN_FILTER_LENGTH                1264
-#define ANC_SN_FILTER_LENGTH                768
-volatile q15_t anc_Sn_coeffs[ANC_SN_FILTER_LENGTH];
+#define ANC_SN_FILTER_LENGTH                128
+volatile float anc_Sn_coeffs[ANC_SN_FILTER_LENGTH];
 
 /* Feed-forward control adaptive filter */
 //#define ANC_WN_FILTER_LENGTH                1264
-#define ANC_WN_FILTER_LENGTH                768
-volatile q15_t anc_Wn_coeffs[ANC_WN_FILTER_LENGTH];
+#define ANC_WN_FILTER_LENGTH                128
+volatile float anc_Wn_coeffs[ANC_WN_FILTER_LENGTH];
 
-/* ANC Algorithm filter states */
-typedef volatile struct __attribute__(( packed, aligned(sizeof(uint32_t)) ))
-{
-    q15_t   Sn_state    [ANC_SN_FILTER_LENGTH];
-    q15_t   SnOut_state [ANC_WN_FILTER_LENGTH];
-    q15_t   Wn_state    [ANC_WN_FILTER_LENGTH];
-} anc_algorithm_states_t;
-
-anc_algorithm_states_t anc_algorithm_states;
+/* ANC Algorithm filter state buffers */
+volatile float anc_Sn_bfr   [ANC_SN_FILTER_LENGTH];
+volatile float anc_SnOut_bfr[ANC_WN_FILTER_LENGTH];
+volatile float anc_Wn_bfr   [ANC_WN_FILTER_LENGTH];
 
 /* High-pass (20 Hz) IIR filter with notch (50 Hz) */
-#define ANC_IIR_FILTER_ORDER                3
-extern const q15_t anc_iir_b_coeffs[ANC_IIR_FILTER_ORDER + 1];
-extern const q15_t anc_iir_a_coeffs[ANC_IIR_FILTER_ORDER];
-extern const q31_t anc_iir_scaling_factor;
+#define ANC_IIR_FILTER_ORDER                2
+/* High-pass (20 Hz) IIR filter */
+extern const q15_t anc_iir_hp_b_coeffs[ANC_IIR_FILTER_ORDER + 1];
+extern const q15_t anc_iir_hp_a_coeffs[ANC_IIR_FILTER_ORDER];
+extern const q31_t anc_iir_hp_scaling_factor;
+/* Notch (50 Hz) IIR filter */
+extern const q15_t anc_iir_notch_b_coeffs[ANC_IIR_FILTER_ORDER + 1];
+extern const q15_t anc_iir_notch_a_coeffs[ANC_IIR_FILTER_ORDER];
+extern const q31_t anc_iir_notch_scaling_factor;
 
 /* Low-pass FIR filters for decimation and interpolation */
 #define ANC_FIR_FILTER_ORDER                31

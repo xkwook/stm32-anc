@@ -17,20 +17,27 @@
 #include "fir.h"
 #include "lnlms.h"
 
+#if defined(ANC_MATH_TESTING_IMPLEMENTATION)
+
+double sampleNormal();
+
+#endif
+
 volatile q15_t errFiltered;
+volatile q15_t errFiltered2;
 
 #define ANC_OFFLINE_IDENTIFICATION_HALF     0u
 #define ANC_OFFLINE_IDENTIFICATION_FULL     1u
 
 struct anc_offline_identification_struct
 {
+    state_buffer_t  stateBfr_Sn;
     fir_t           fir_Sn;
     lnlms_t         lnlms;
     q15_t*          excitationSignal_p;
-    q15_t           out;
+    float           out;
     uint32_t        counter;
     uint32_t        identificationCycles;
-    volatile q15_t* Sn_state_p;
 };
 
 typedef volatile struct anc_offline_identification_struct anc_offline_identification_t;
@@ -41,7 +48,8 @@ typedef volatile struct anc_offline_identification_struct anc_offline_identifica
 void anc_offline_identification_init(
     anc_offline_identification_t*   self,
     uint32_t                        identificationCycles,
-    volatile q15_t*                 Sn_state_p
+    float                           mu,
+    float                           alpha
 );
 
 __attribute__((weak)) void anc_offline_identification_onEndCallback(
@@ -59,44 +67,50 @@ static inline q15_t anc_offline_identification_calculate(
     anc_processing_preprocessing_data_t samples
 )
 {
-    q31_t error;
     q15_t out;
+    float errSample;
+    float error;
+    float out_f;
     uint32_t counter = self->counter;
 
     if (counter < self->identificationCycles)
     {
-        /* Load old out */
-        out = self->out;
+        /* Convert sample q15 to float */
+        errSample = q15_to_float(samples.errSample);
 
-        /* Filter old out with Sn Path as reference */
-        fir_pushData(&(self->fir_Sn), out);
-        out = fir_calculate(&(self->fir_Sn));
+        /* Filter current out with Sn Path as reference */
+        out_f = fir_calculate(&(self->fir_Sn));
 
         /* Calculate measured error with reference model */
-        error = (q31_t) samples.errSample - (q31_t) out;
+        error = errSample - out_f;
 
         /* Temporary only */
-        errFiltered = (q15_t) __SSAT(error, 16);
-        //errFiltered = out;
+        errFiltered = float_to_q15(error);
+        errFiltered2 = float_to_q15(out_f);
 
         /* Update Sn using LNLMS algorithm */
-        lnlms_update(&self->lnlms, error);
+        lnlms_update(&(self->lnlms), error);
 
-        /* Shift states */
-        fir_turn(&(self->fir_Sn));
+        /* Shift state buffer */
+        state_buffer_turn(&(self->stateBfr_Sn));
 
         /* Increment counter */
         counter++;
-        if (counter > self->identificationCycles)
+        if (counter == self->identificationCycles)
         {
             anc_offline_identification_onEndCallback(self);
         }
 
+#if defined(ANC_MATH_TESTING_IMPLEMENTATION)
+        out = float_to_q15(0.25 * sampleNormal());
+#else
         /* Generate new excitation output */
         out = self->excitationSignal_p[counter % ANC_LMS_EXCITATION_SIGNAL_LENGTH];
+#endif
 
-        /* Save out signal */
-        self->out = out;
+        /* Save new out signal to state buffer */
+        out_f = q15_to_float(out);
+        state_buffer_pushData(&(self->stateBfr_Sn), out_f);
 
         /* Save counter */
         self->counter = counter;

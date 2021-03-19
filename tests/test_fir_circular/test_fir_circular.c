@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "test_vector_handler.h"
-#include "fir_circular.h"
+//#include "fir_circular.h"
+#include "fir.h"
 #include "anc_parameters.h"
 
 #define DEBUG           0
@@ -16,9 +17,13 @@
 #define OUT_CHUNK       1
 #define MAX_MSE         0.00001
 
-static fir_circular_t fir[2];
+//static fir_circular_t fir[2];
+static state_buffer_t stateBfr;
+static fir_t fir;
 
-static q15_t stateBfr[2][ANC_FIR_FILTER_ORDER + 1];
+static volatile float bfr[ANC_FIR_FILTER_ORDER + 1];
+
+static volatile float coeffs[ANC_FIR_FILTER_ORDER + 1];
 
 void filtersInit(void);
 
@@ -52,20 +57,21 @@ int main(void)
 
 void filtersInit(void)
 {
-    fir_circular_init(
-        &fir[0],
-        (q15_t*) anc_fir_decim_coeffs,
-        fir_circular_getDataInPtr(&fir[1]),
-        &stateBfr[0][0],
+    for (int i = 0; i < ANC_FIR_FILTER_ORDER + 1; i++)
+    {
+        coeffs[i] = q15_to_float(anc_fir_decim_coeffs[i]);
+    }
+
+    state_buffer_init(
+        &stateBfr,
+        bfr,
         ANC_FIR_FILTER_ORDER + 1
     );
 
-    fir_circular_init(
-        &fir[1],
-        (q15_t*) anc_fir_decim_coeffs,
-        fir_circular_getDataInPtr(&fir[0]),
-        &stateBfr[1][0],
-        ANC_FIR_FILTER_ORDER + 1
+    fir_init(
+        &fir,
+        &stateBfr,
+        coeffs
     );
 }
 
@@ -76,12 +82,11 @@ void test_vector_handler_calculation_callback(
     int                     iteration
 )
 {
-    fir_circular_t* h_fir;
+    float in, out;
 
-    /* Get proper filter handler */
-    h_fir = &fir[iteration % 2];
+    in = q15_to_float(input_samples[0]);
 
-    fir_circular_pushData(h_fir, input_samples[0]);
+    state_buffer_pushData(&stateBfr, in);
 
 #if DEBUG
     if (iteration < 5)
@@ -93,7 +98,11 @@ void test_vector_handler_calculation_callback(
     }
 #endif
 
-    output_samples[0] = fir_circular_calculate(h_fir);
+    out = fir_calculate(&fir);
+
+    state_buffer_turn(&stateBfr);
+
+    output_samples[0] = float_to_q15(out);
 
 #if DEBUG
     if (iteration < 5)
@@ -101,9 +110,4 @@ void test_vector_handler_calculation_callback(
         printf("\ty   = %5d\n\n", output_samples[0]);
     }
 #endif
-
-    /* Move memory by factor of 2 */
-    memmove(&stateBfr[iteration % 2][0],
-            &stateBfr[iteration % 2][2],
-            (ANC_FIR_FILTER_ORDER - 1) * sizeof(stateBfr[0][0]));
 }
